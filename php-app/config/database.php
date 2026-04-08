@@ -49,7 +49,15 @@ class Database
 
     private static function loadConfig(): array
     {
-        $appConfig = require dirname(__DIR__) . '/config/app.php';
+        $configPath = defined('BASE_PATH')
+            ? BASE_PATH . '/config/app.php'
+            : dirname(__DIR__) . '/app.php';
+
+        if (!file_exists($configPath)) {
+            $configPath = dirname(__DIR__) . '/config/app.php';
+        }
+
+        $appConfig = require $configPath;
 
         return $appConfig['database'] ?? throw new RuntimeException('Database configuration not found');
     }

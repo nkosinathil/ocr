@@ -16,74 +16,67 @@ class User
         $this->db = Database::getInstance();
     }
 
-    /**
-     * @return array{id: int, sso_id: string, email: string, name: string, username: string, avatar: ?string}|null
-     */
     public function findBySsoId(string $ssoId): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, sso_id, email, name, username, avatar, created_at, updated_at 
-             FROM users_local 
-             WHERE sso_id = :sso_id 
+            'SELECT id, sso_user_id, email, display_name, role, avatar_url,
+                    last_login_at, is_active, created_at, updated_at
+             FROM users_local
+             WHERE sso_user_id = :sso_user_id
              LIMIT 1'
         );
-        $stmt->execute(['sso_id' => $ssoId]);
+        $stmt->execute(['sso_user_id' => $ssoId]);
 
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result !== false ? $result : null;
     }
 
-    /**
-     * @param array{sso_id: string, email: string, name: string, username: string, avatar?: ?string} $ssoData
-     * @return array{id: int, sso_id: string, email: string, name: string, username: string, avatar: ?string}
-     */
     public function createOrUpdate(array $ssoData): array
     {
         $existing = $this->findBySsoId($ssoData['sso_id']);
 
         if ($existing !== null) {
             $stmt = $this->db->prepare(
-                'UPDATE users_local 
-                 SET email = :email, name = :name, username = :username, avatar = :avatar, updated_at = NOW() 
-                 WHERE sso_id = :sso_id 
-                 RETURNING id, sso_id, email, name, username, avatar, created_at, updated_at'
+                'UPDATE users_local
+                 SET email = :email, display_name = :display_name, avatar_url = :avatar_url,
+                     last_login_at = NOW(), updated_at = NOW()
+                 WHERE sso_user_id = :sso_user_id
+                 RETURNING id, sso_user_id, email, display_name, role, avatar_url,
+                           last_login_at, is_active, created_at, updated_at'
             );
             $stmt->execute([
-                'email'    => $ssoData['email'],
-                'name'     => $ssoData['name'],
-                'username' => $ssoData['username'],
-                'avatar'   => $ssoData['avatar'] ?? null,
-                'sso_id'   => $ssoData['sso_id'],
+                'email'        => $ssoData['email'],
+                'display_name' => $ssoData['name'] ?? $ssoData['username'] ?? '',
+                'avatar_url'   => $ssoData['avatar'] ?? null,
+                'sso_user_id'  => $ssoData['sso_id'],
             ]);
 
             return $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
         $stmt = $this->db->prepare(
-            'INSERT INTO users_local (sso_id, email, name, username, avatar, created_at, updated_at) 
-             VALUES (:sso_id, :email, :name, :username, :avatar, NOW(), NOW()) 
-             RETURNING id, sso_id, email, name, username, avatar, created_at, updated_at'
+            'INSERT INTO users_local (sso_user_id, email, display_name, avatar_url, last_login_at, created_at, updated_at)
+             VALUES (:sso_user_id, :email, :display_name, :avatar_url, NOW(), NOW(), NOW())
+             RETURNING id, sso_user_id, email, display_name, role, avatar_url,
+                       last_login_at, is_active, created_at, updated_at'
         );
         $stmt->execute([
-            'sso_id'   => $ssoData['sso_id'],
-            'email'    => $ssoData['email'],
-            'name'     => $ssoData['name'],
-            'username' => $ssoData['username'],
-            'avatar'   => $ssoData['avatar'] ?? null,
+            'sso_user_id'  => $ssoData['sso_id'],
+            'email'        => $ssoData['email'],
+            'display_name' => $ssoData['name'] ?? $ssoData['username'] ?? '',
+            'avatar_url'   => $ssoData['avatar'] ?? null,
         ]);
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * @return array{id: int, sso_id: string, email: string, name: string, username: string, avatar: ?string}|null
-     */
-    public function findById(int $id): ?array
+    public function findById(string $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, sso_id, email, name, username, avatar, created_at, updated_at 
-             FROM users_local 
-             WHERE id = :id 
+            'SELECT id, sso_user_id, email, display_name, role, avatar_url,
+                    last_login_at, is_active, created_at, updated_at
+             FROM users_local
+             WHERE id = :id
              LIMIT 1'
         );
         $stmt->execute(['id' => $id]);

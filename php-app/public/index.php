@@ -39,19 +39,19 @@ try {
         $requestUri === '/upload' && $method === 'POST' => (new \App\Controllers\UploadController($config))->store(),
 
         $requestUri === '/jobs' => (new \App\Controllers\JobController($config))->index(),
-        preg_match('#^/jobs/(\d+)/status$#', $requestUri, $m) === 1
-            => (new \App\Controllers\JobController($config))->status((int) $m[1]),
-        preg_match('#^/jobs/(\d+)/cancel$#', $requestUri, $m) === 1 && $method === 'POST'
-            => (new \App\Controllers\JobController($config))->cancel((int) $m[1]),
-        preg_match('#^/jobs/create$#', $requestUri) === 1 && $method === 'POST'
+        preg_match('#^/jobs/([a-f0-9\-]+)/status$#', $requestUri, $m) === 1
+            => (new \App\Controllers\JobController($config))->status($m[1]),
+        preg_match('#^/jobs/([a-f0-9\-]+)/cancel$#', $requestUri, $m) === 1 && $method === 'POST'
+            => (new \App\Controllers\JobController($config))->cancel($m[1]),
+        $requestUri === '/jobs/create' && $method === 'POST'
             => (new \App\Controllers\JobController($config))->create(),
-        preg_match('#^/jobs/(\d+)$#', $requestUri, $m) === 1
-            => (new \App\Controllers\JobController($config))->show((int) $m[1]),
+        preg_match('#^/jobs/([a-f0-9\-]+)$#', $requestUri, $m) === 1
+            => (new \App\Controllers\JobController($config))->show($m[1]),
 
-        preg_match('#^/results/(\d+)$#', $requestUri, $m) === 1
-            => (new \App\Controllers\ResultController($config))->show((int) $m[1]),
-        preg_match('#^/results/(\d+)/download$#', $requestUri, $m) === 1
-            => (new \App\Controllers\ResultController($config))->download((int) $m[1]),
+        preg_match('#^/results/([a-f0-9\-]+)$#', $requestUri, $m) === 1
+            => (new \App\Controllers\ResultController($config))->show($m[1]),
+        preg_match('#^/results/([a-f0-9\-]+)/download$#', $requestUri, $m) === 1
+            => (new \App\Controllers\ResultController($config))->download($m[1]),
 
         str_starts_with($requestUri, '/api/') => handleApiProxy($requestUri, $config),
 

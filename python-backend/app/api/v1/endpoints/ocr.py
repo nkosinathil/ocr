@@ -231,7 +231,7 @@ async def upload_file(
             detail="Uploaded file is empty",
         )
 
-    max_size = 50 * 1024 * 1024  # 50 MB
+    max_size = 100 * 1024 * 1024  # 100 MB
     if file_size > max_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -257,8 +257,8 @@ async def upload_file(
     execute_query(
         """
         INSERT INTO uploads (id, user_id, original_filename, stored_filename, mime_type,
-                             file_size_bytes, upload_type, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                             file_size_bytes, upload_type, minio_bucket, minio_object_key, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             str(upload_id),
@@ -268,6 +268,8 @@ async def upload_file(
             file.content_type,
             file_size,
             upload_type,
+            settings.MINIO_BUCKET_UPLOADS,
+            stored_filename,
             now,
         ),
     )

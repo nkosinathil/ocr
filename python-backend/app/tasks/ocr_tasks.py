@@ -62,7 +62,7 @@ def process_ocr_job(self, job_id: str) -> dict:
             """
             SELECT u.stored_filename, u.mime_type, u.original_filename
             FROM uploads u
-            JOIN ocr_jobs j ON j.upload_id = u.id::text
+            JOIN ocr_jobs j ON j.upload_id = u.id
             WHERE j.id = %s
             """,
             (job_id,),

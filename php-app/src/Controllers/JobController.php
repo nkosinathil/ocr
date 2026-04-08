@@ -26,7 +26,7 @@ class JobController
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $limit = 20;
 
-        $result = $this->jobService->listJobs((int) $user['id'], $page, $limit);
+        $result = $this->jobService->listJobs($user['id'], $page, $limit);
 
         $data = [
             'user'       => $user,
@@ -42,7 +42,7 @@ class JobController
         $this->render('jobs/index', $data);
     }
 
-    public function show(int $id): void
+    public function show(string $id): void
     {
         $user = AuthMiddleware::getUser();
 
@@ -87,7 +87,7 @@ class JobController
         }
 
         try {
-            $job = $this->jobService->createJob((int) $uploadId, $language, $engine);
+            $job = $this->jobService->createJob($uploadId, $language, $engine);
 
             $_SESSION['flash_success'] = 'OCR job created successfully.';
             header('Location: /jobs/' . ($job['id'] ?? $job['job_id'] ?? ''));
@@ -100,7 +100,7 @@ class JobController
         }
     }
 
-    public function status(int $id): void
+    public function status(string $id): void
     {
         header('Content-Type: application/json');
 
@@ -113,7 +113,7 @@ class JobController
         }
     }
 
-    public function cancel(int $id): void
+    public function cancel(string $id): void
     {
         try {
             $this->jobService->cancelJob($id);

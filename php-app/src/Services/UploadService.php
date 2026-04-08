@@ -33,7 +33,7 @@ class UploadService
      * @param array{tmp_name: string, name: string, type: string, size: int, error: int} $file
      * @return array{upload_id: int|string, filename: string, status: string}
      */
-    public function uploadFile(array $file, int $userId): array
+    public function uploadFile(array $file, string $userId): array
     {
         $this->validateFile($file);
 

@@ -21,8 +21,8 @@ class DashboardController
         $user = AuthMiddleware::getUser();
         $jobModel = new Job();
 
-        $stats = $jobModel->getStats((int) $user['id']);
-        $recentJobs = $jobModel->findByUserId((int) $user['id'], 10, 0);
+        $stats = $jobModel->getStats($user['id']);
+        $recentJobs = $jobModel->findByUserId($user['id'], 10, 0);
 
         $data = [
             'user'       => $user,

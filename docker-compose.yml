@@ -1,0 +1,123 @@
+# ============================================================
+# OCR Platform - Docker Compose (Development)
+# ============================================================
+# This compose file is for local development and testing only.
+# In production, services run on separate servers:
+#   192.168.1.66 → PHP + Apache + PostgreSQL
+#   192.168.1.90 → Python + Redis + MinIO + Celery
+#   192.168.1.59 → SSO Server
+# ============================================================
+
+services:
+
+  # ---------- Application Server (192.168.1.66) ----------
+
+  php-app:
+    build:
+      context: ./php-app
+      dockerfile: Dockerfile
+    container_name: ocr-php-app
+    ports:
+      - "80:80"
+    environment:
+      - APP_ENV=development
+      - APP_DEBUG=true
+    volumes:
+      - ./php-app:/var/www/html
+    depends_on:
+      - postgres
+    networks:
+      - ocr-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ocr-postgres
+    environment:
+      POSTGRES_DB: ocr_platform
+      POSTGRES_USER: ocr_app
+      POSTGRES_PASSWORD: ocr_secure_password_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - ocr-network
+
+  # ---------- Processing Server (192.168.1.90) ----------
+
+  python-api:
+    build:
+      context: ./python-backend
+      dockerfile: Dockerfile
+    container_name: ocr-python-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_HOST=postgres
+      - REDIS_HOST=redis
+      - MINIO_ENDPOINT=minio:9000
+      - CORS_ORIGINS=http://localhost,http://php-app
+    volumes:
+      - ./python-backend:/app
+    depends_on:
+      - redis
+      - minio
+      - postgres
+    networks:
+      - ocr-network
+
+  celery-worker:
+    build:
+      context: ./python-backend
+      dockerfile: Dockerfile
+    container_name: ocr-celery-worker
+    command: celery -A app.tasks.celery_app:celery_app worker -l info -Q ocr,default -c 2
+    environment:
+      - DATABASE_HOST=postgres
+      - REDIS_HOST=redis
+      - MINIO_ENDPOINT=minio:9000
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    volumes:
+      - ./python-backend:/app
+    depends_on:
+      - redis
+      - minio
+      - postgres
+    networks:
+      - ocr-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ocr-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ocr-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: ocr-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    networks:
+      - ocr-network
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+
+networks:
+  ocr-network:
+    driver: bridge

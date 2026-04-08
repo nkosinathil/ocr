@@ -16,16 +16,17 @@ class Job
         $this->db = Database::getInstance();
     }
 
-    /**
-     * @return array{id: int, external_id: ?string, upload_id: int, user_id: int, status: string}|null
-     */
-    public function findById(int $id): ?array
+    public function findById(string $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, external_id, upload_id, user_id, status, language, engine, 
-                    created_at, updated_at, completed_at 
-             FROM ocr_jobs 
-             WHERE id = :id 
+            'SELECT j.id, j.upload_id, j.user_id, j.status, j.language, j.engine,
+                    j.priority, j.celery_task_id, j.progress_percent, j.pages_processed,
+                    j.pages_total, j.started_at, j.completed_at, j.error_message,
+                    j.created_at, j.updated_at,
+                    u.original_filename
+             FROM ocr_jobs j
+             LEFT JOIN uploads u ON j.upload_id = u.id
+             WHERE j.id = :id
              LIMIT 1'
         );
         $stmt->execute(['id' => $id]);
@@ -34,20 +35,21 @@ class Job
         return $result !== false ? $result : null;
     }
 
-    /**
-     * @return array<int, array{id: int, external_id: ?string, upload_id: int, status: string}>
-     */
-    public function findByUserId(int $userId, int $limit = 20, int $offset = 0): array
+    public function findByUserId(string $userId, int $limit = 20, int $offset = 0): array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, external_id, upload_id, user_id, status, language, engine, 
-                    created_at, updated_at, completed_at 
-             FROM ocr_jobs 
-             WHERE user_id = :user_id 
-             ORDER BY created_at DESC 
+            'SELECT j.id, j.upload_id, j.user_id, j.status, j.language, j.engine,
+                    j.priority, j.progress_percent, j.pages_processed, j.pages_total,
+                    j.started_at, j.completed_at, j.error_message,
+                    j.created_at, j.updated_at,
+                    u.original_filename
+             FROM ocr_jobs j
+             LEFT JOIN uploads u ON j.upload_id = u.id
+             WHERE j.user_id = :user_id
+             ORDER BY j.created_at DESC
              LIMIT :limit OFFSET :offset'
         );
-        $stmt->bindValue('user_id', $userId, PDO::PARAM_INT);
+        $stmt->bindValue('user_id', $userId);
         $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue('offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -55,21 +57,19 @@ class Job
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * @return array{total: int, pending: int, processing: int, completed: int, failed: int, cancelled: int}
-     */
-    public function getStats(int $userId): array
+    public function getStats(string $userId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT 
+            "SELECT
                 COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status = \'pending\') as pending,
-                COUNT(*) FILTER (WHERE status = \'processing\') as processing,
-                COUNT(*) FILTER (WHERE status = \'completed\') as completed,
-                COUNT(*) FILTER (WHERE status = \'failed\') as failed,
-                COUNT(*) FILTER (WHERE status = \'cancelled\') as cancelled
-             FROM ocr_jobs 
-             WHERE user_id = :user_id'
+                COUNT(*) FILTER (WHERE status = 'pending') as pending,
+                COUNT(*) FILTER (WHERE status = 'queued') as queued,
+                COUNT(*) FILTER (WHERE status = 'processing') as processing,
+                COUNT(*) FILTER (WHERE status = 'completed') as completed,
+                COUNT(*) FILTER (WHERE status = 'failed') as failed,
+                COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled
+             FROM ocr_jobs
+             WHERE user_id = :user_id"
         );
         $stmt->execute(['user_id' => $userId]);
 
@@ -78,6 +78,7 @@ class Job
         return [
             'total'      => (int) ($result['total'] ?? 0),
             'pending'    => (int) ($result['pending'] ?? 0),
+            'queued'     => (int) ($result['queued'] ?? 0),
             'processing' => (int) ($result['processing'] ?? 0),
             'completed'  => (int) ($result['completed'] ?? 0),
             'failed'     => (int) ($result['failed'] ?? 0),
@@ -85,26 +86,13 @@ class Job
         ];
     }
 
-    /**
-     * @return array{id: int, external_id: ?string, upload_id: int, user_id: int, status: string}
-     */
-    public function create(array $data): array
+    public function countByUserId(string $userId): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO ocr_jobs (external_id, upload_id, user_id, status, language, engine, created_at, updated_at) 
-             VALUES (:external_id, :upload_id, :user_id, :status, :language, :engine, NOW(), NOW()) 
-             RETURNING id, external_id, upload_id, user_id, status, language, engine, created_at, updated_at'
+            'SELECT COUNT(*) as total FROM ocr_jobs WHERE user_id = :user_id'
         );
-
-        $stmt->execute([
-            'external_id' => $data['external_id'] ?? null,
-            'upload_id'   => $data['upload_id'],
-            'user_id'     => $data['user_id'],
-            'status'      => $data['status'] ?? 'pending',
-            'language'    => $data['language'] ?? 'eng',
-            'engine'      => $data['engine'] ?? 'tesseract',
-        ]);
-
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute(['user_id' => $userId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int) ($result['total'] ?? 0);
     }
 }

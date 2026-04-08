@@ -2,59 +2,71 @@
 
 const OCRApp = {
     pollIntervals: new Map(),
-    toastTimeout: null,
 
     init() {
+        this.initSidebar();
         this.initDragAndDrop();
-        this.initJobPolling();
-        this.initCancelButtons();
-        this.initDashboardRefresh();
         this.initFileInput();
+        this.initFlashAutoHide();
     },
 
-    // --- File Upload with Drag-and-Drop ---
+    // ---- Sidebar Mobile Toggle ----
+
+    initSidebar() {
+        const toggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+
+        if (!toggle || !sidebar) return;
+
+        toggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+        });
+
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            });
+        }
+    },
+
+    // ---- Drag & Drop Upload ----
 
     initDragAndDrop() {
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
+        const zone = document.getElementById('uploadZone');
+        const input = document.getElementById('fileInput');
+        if (!zone || !input) return;
 
-        if (!dropZone || !fileInput) return;
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            });
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+            zone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); });
         });
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => {
-                dropZone.classList.add('drag-over');
-            });
+        ['dragenter', 'dragover'].forEach(evt => {
+            zone.addEventListener(evt, () => zone.classList.add('drag-over'));
         });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => {
-                dropZone.classList.remove('drag-over');
-            });
+        ['dragleave', 'drop'].forEach(evt => {
+            zone.addEventListener(evt, () => zone.classList.remove('drag-over'));
         });
 
-        dropZone.addEventListener('drop', (e) => {
+        zone.addEventListener('drop', e => {
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                fileInput.files = files;
+                input.files = files;
                 this.handleFileSelect(files[0]);
             }
         });
 
-        dropZone.addEventListener('click', () => fileInput.click());
+        zone.addEventListener('click', () => input.click());
     },
 
     initFileInput() {
-        const fileInput = document.getElementById('file-input');
-        if (!fileInput) return;
+        const input = document.getElementById('fileInput');
+        if (!input) return;
 
-        fileInput.addEventListener('change', (e) => {
+        input.addEventListener('change', e => {
             if (e.target.files.length > 0) {
                 this.handleFileSelect(e.target.files[0]);
             }
@@ -62,85 +74,87 @@ const OCRApp = {
     },
 
     handleFileSelect(file) {
-        const fileInfo = document.getElementById('file-info');
-        const fileName = document.getElementById('file-name');
-        const fileSize = document.getElementById('file-size');
-        const uploadBtn = document.getElementById('upload-btn');
+        const preview = document.getElementById('filePreview');
+        const nameEl = document.getElementById('fileName');
+        const sizeEl = document.getElementById('fileSize');
+        const iconEl = document.getElementById('fileTypeIcon');
+        const submitBtn = document.getElementById('submitBtn');
+        const removeBtn = document.getElementById('removeFile');
 
-        if (fileInfo) fileInfo.style.display = 'block';
-        if (fileName) fileName.textContent = file.name;
-        if (fileSize) fileSize.textContent = this.formatFileSize(file.size);
-        if (uploadBtn) uploadBtn.disabled = false;
+        if (preview) preview.classList.remove('hidden');
+        if (nameEl) nameEl.textContent = file.name;
+        if (sizeEl) sizeEl.textContent = this.formatFileSize(file.size);
+        if (submitBtn) submitBtn.disabled = false;
+
+        if (iconEl) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            iconEl.textContent = ext.toUpperCase();
+            iconEl.className = 'file-icon file-icon-' + ext;
+        }
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                const input = document.getElementById('fileInput');
+                if (input) input.value = '';
+                if (preview) preview.classList.add('hidden');
+                if (submitBtn) submitBtn.disabled = true;
+            }, { once: true });
+        }
     },
 
-    // --- Upload with Progress Bar ---
+    // ---- Upload Form Submission with Progress ----
 
     submitUpload(form) {
-        const progressContainer = document.getElementById('progress-container');
-        const progressBar = document.getElementById('progress-bar');
-        const progressText = document.getElementById('progress-text');
-        const uploadBtn = document.getElementById('upload-btn');
+        if (!form) return false;
 
-        if (!form || !progressContainer) return;
+        const submitBtn = document.getElementById('submitBtn');
+        const progressWrap = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
 
-        if (uploadBtn) uploadBtn.disabled = true;
-        progressContainer.style.display = 'block';
+        if (submitBtn) submitBtn.disabled = true;
+        if (progressWrap) progressWrap.classList.remove('hidden');
 
         const formData = new FormData(form);
         const xhr = new XMLHttpRequest();
 
-        xhr.upload.addEventListener('progress', (e) => {
+        xhr.upload.addEventListener('progress', e => {
             if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                if (progressBar) progressBar.style.width = percent + '%';
-                if (progressText) progressText.textContent = percent + '%';
+                const pct = Math.round((e.loaded / e.total) * 100);
+                if (progressBar) progressBar.style.width = pct + '%';
+                if (progressText) progressText.textContent = 'Uploading... ' + pct + '%';
             }
         });
 
         xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 400) {
                 if (progressBar) progressBar.style.width = '100%';
-                if (progressText) progressText.textContent = '100% - Redirecting...';
-                if (xhr.responseURL) {
-                    window.location.href = xhr.responseURL;
-                } else {
-                    window.location.href = '/jobs';
-                }
+                if (progressText) progressText.textContent = 'Upload complete. Redirecting...';
+                setTimeout(() => { window.location.href = xhr.responseURL || '/jobs'; }, 500);
             } else {
                 this.showToast('Upload failed. Please try again.', 'error');
-                if (uploadBtn) uploadBtn.disabled = false;
-                progressContainer.style.display = 'none';
+                if (submitBtn) submitBtn.disabled = false;
+                if (progressWrap) progressWrap.classList.add('hidden');
             }
         });
 
         xhr.addEventListener('error', () => {
-            this.showToast('Network error. Please check your connection.', 'error');
-            if (uploadBtn) uploadBtn.disabled = false;
-            progressContainer.style.display = 'none';
+            this.showToast('Network error during upload.', 'error');
+            if (submitBtn) submitBtn.disabled = false;
+            if (progressWrap) progressWrap.classList.add('hidden');
         });
 
         xhr.open('POST', form.action || '/upload');
         xhr.send(formData);
+        return false;
     },
 
-    // --- Job Status Polling ---
+    // ---- Job Status Polling ----
 
-    initJobPolling() {
-        const activeJobs = document.querySelectorAll('[data-job-id][data-job-status]');
-
-        activeJobs.forEach(el => {
-            const jobId = el.dataset.jobId;
-            const status = el.dataset.jobStatus;
-
-            if (status === 'pending' || status === 'processing') {
-                this.startPolling(jobId);
-            }
-        });
-    },
-
-    startPolling(jobId) {
+    pollJobStatus(jobId) {
         if (this.pollIntervals.has(jobId)) return;
 
+        this.checkJobStatus(jobId);
         const interval = setInterval(() => this.checkJobStatus(jobId), 3000);
         this.pollIntervals.set(jobId, interval);
     },
@@ -155,171 +169,182 @@ const OCRApp = {
 
     async checkJobStatus(jobId) {
         try {
-            const response = await fetch(`/jobs/${jobId}/status`, {
-                headers: { 'Accept': 'application/json' },
+            const resp = await fetch(`/jobs/${jobId}/status`, {
+                headers: { 'Accept': 'application/json' }
             });
+            if (!resp.ok) return;
 
-            if (!response.ok) return;
+            const data = await resp.json();
+            this.updateJobDetailUI(jobId, data);
 
-            const data = await response.json();
-            this.updateJobUI(jobId, data);
-
-            if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+            const terminal = ['completed', 'failed', 'cancelled'];
+            if (terminal.includes(data.status)) {
                 this.stopPolling(jobId);
-
                 if (data.status === 'completed') {
-                    this.showToast(`Job #${jobId} completed!`, 'success');
+                    this.showToast('OCR processing completed!', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
                 } else if (data.status === 'failed') {
-                    this.showToast(`Job #${jobId} failed.`, 'error');
+                    this.showToast('OCR processing failed.', 'error');
+                    setTimeout(() => window.location.reload(), 1500);
                 }
             }
         } catch (err) {
-            console.error(`Polling error for job ${jobId}:`, err);
+            console.error('Poll error:', err);
         }
     },
 
-    updateJobUI(jobId, data) {
-        const statusEl = document.querySelector(`[data-job-id="${jobId}"] .job-status`);
-        const progressEl = document.querySelector(`[data-job-id="${jobId}"] .job-progress`);
-
-        if (statusEl) {
-            statusEl.textContent = data.status;
-            statusEl.className = 'job-status badge badge-' + data.status;
+    updateJobDetailUI(jobId, data) {
+        const badge = document.getElementById('job-status-badge');
+        if (badge) {
+            badge.className = 'badge badge-' + data.status;
+            badge.innerHTML = '<span class="badge-dot"></span> ' + this.capitalize(data.status);
         }
 
-        if (progressEl && data.progress !== undefined) {
-            progressEl.style.width = data.progress + '%';
-            progressEl.textContent = data.progress + '%';
+        const bar = document.getElementById('job-progress-bar');
+        if (bar) {
+            bar.style.width = (data.progress_percent || 0) + '%';
+            if (data.status === 'completed') bar.className = 'progress-bar completed';
+            else if (data.status === 'failed') bar.className = 'progress-bar failed';
         }
 
-        const detailStatus = document.getElementById('detail-job-status');
-        if (detailStatus) {
-            detailStatus.textContent = data.status;
-            detailStatus.className = 'badge badge-' + data.status;
+        const label = document.getElementById('progress-label');
+        if (label) label.textContent = (data.progress_percent || 0) + '%';
+
+        const pages = document.getElementById('pages-info');
+        if (pages) {
+            pages.textContent = (data.pages_processed || 0) + ' of ' + (data.pages_total || 0) + ' pages processed';
         }
 
-        if (data.status === 'completed') {
-            const resultLink = document.getElementById('result-link');
-            if (resultLink) resultLink.style.display = 'inline-block';
+        const statusBadge = document.getElementById('status-' + jobId);
+        if (statusBadge) {
+            statusBadge.className = 'badge badge-' + data.status;
+            statusBadge.innerHTML = '<span class="badge-dot"></span> ' + this.capitalize(data.status);
+        }
+
+        const progBar = document.getElementById('progress-' + jobId);
+        if (progBar) {
+            progBar.style.width = (data.progress_percent || 0) + '%';
         }
     },
 
-    // --- Cancel Confirmation ---
+    // ---- Cancel Job ----
 
-    initCancelButtons() {
-        document.querySelectorAll('[data-cancel-job]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const jobId = btn.dataset.cancelJob;
-                this.confirmCancel(jobId);
-            });
-        });
-    },
-
-    confirmCancel(jobId) {
-        if (!confirm(`Are you sure you want to cancel Job #${jobId}? This action cannot be undone.`)) {
-            return;
-        }
+    cancelJob(jobId) {
+        if (!confirm('Are you sure you want to cancel this job? This action cannot be undone.')) return;
 
         fetch(`/jobs/${jobId}/cancel`, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
-        .then(res => res.json())
+        .then(r => r.json())
         .then(data => {
             if (data.success) {
-                this.showToast(`Job #${jobId} cancelled.`, 'success');
+                this.showToast('Job cancelled.', 'success');
                 this.stopPolling(jobId);
-                if (data.redirect) {
-                    window.location.href = data.redirect;
-                } else {
-                    window.location.reload();
-                }
+                setTimeout(() => {
+                    window.location.href = data.redirect || '/jobs';
+                }, 800);
             } else {
                 this.showToast('Failed to cancel job.', 'error');
             }
         })
-        .catch(() => {
-            this.showToast('Network error while cancelling job.', 'error');
+        .catch(() => this.showToast('Network error while cancelling.', 'error'));
+    },
+
+    // ---- Results Page ----
+
+    showResultPage(pageIndex, tabEl) {
+        document.querySelectorAll('.result-page-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.page-tab').forEach(el => el.classList.remove('active'));
+
+        const target = pageIndex === 'all'
+            ? document.getElementById('result-all')
+            : document.getElementById('result-' + pageIndex);
+
+        if (target) target.classList.remove('hidden');
+        if (tabEl) tabEl.classList.add('active');
+    },
+
+    copyResultText() {
+        const block = document.getElementById('resultTextBlock');
+        if (!block) return;
+
+        navigator.clipboard.writeText(block.textContent).then(() => {
+            this.showToast('Text copied to clipboard.', 'success');
+        }).catch(() => {
+            const range = document.createRange();
+            range.selectNodeContents(block);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand('copy');
+            sel.removeAllRanges();
+            this.showToast('Text copied to clipboard.', 'success');
         });
     },
 
-    // --- Dashboard Auto-Refresh ---
+    // ---- Toast Notifications ----
 
-    initDashboardRefresh() {
-        const dashboard = document.getElementById('dashboard-stats');
-        if (!dashboard) return;
-
-        setInterval(() => this.refreshDashboard(), 15000);
-    },
-
-    async refreshDashboard() {
-        try {
-            const response = await fetch('/api/v1/ocr/jobs/stats', {
-                headers: { 'Accept': 'application/json' },
-            });
-
-            if (!response.ok) return;
-
-            const stats = await response.json();
-
-            const fields = ['total', 'completed', 'processing', 'failed', 'pending'];
-            fields.forEach(field => {
-                const el = document.getElementById('stat-' + field);
-                if (el && stats[field] !== undefined) {
-                    el.textContent = stats[field];
-                }
-            });
-        } catch (err) {
-            console.error('Dashboard refresh error:', err);
-        }
-    },
-
-    // --- Toast Notifications ---
-
-    showToast(message, type = 'info') {
-        let container = document.getElementById('toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toast-container';
-            document.body.appendChild(container);
-        }
+    showToast(message, type) {
+        type = type || 'info';
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
 
         const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.innerHTML = `
-            <span class="toast-message">${this.escapeHtml(message)}</span>
-            <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
-        `;
+        toast.className = 'toast';
+        toast.style.borderLeft = '4px solid ' + this.toastColor(type);
+        toast.innerHTML =
+            '<span>' + this.escapeHtml(message) + '</span>' +
+            '<button class="flash-close" onclick="this.parentElement.remove()" style="margin-left:auto">&times;</button>';
 
         container.appendChild(toast);
 
-        requestAnimationFrame(() => toast.classList.add('toast-visible'));
-
         setTimeout(() => {
-            toast.classList.remove('toast-visible');
-            setTimeout(() => toast.remove(), 300);
-        }, 5000);
+            toast.classList.add('toast-out');
+            setTimeout(() => toast.remove(), 250);
+        }, 4500);
     },
 
-    // --- Utilities ---
+    toastColor(type) {
+        const map = { success: '#16a34a', error: '#dc2626', warning: '#d97706', info: '#2563eb' };
+        return map[type] || map.info;
+    },
+
+    // ---- Flash Message Auto-Hide ----
+
+    initFlashAutoHide() {
+        document.querySelectorAll('.flash-message').forEach(el => {
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(-8px)';
+                el.style.transition = 'all 0.3s ease';
+                setTimeout(() => el.remove(), 300);
+            }, 6000);
+        });
+    },
+
+    // ---- Utilities ----
 
     formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
+        if (bytes === 0) return '0 B';
         const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const units = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + units[i];
+    },
+
+    capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
     },
 
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    },
+        const d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }
 };
 
 document.addEventListener('DOMContentLoaded', () => OCRApp.init());

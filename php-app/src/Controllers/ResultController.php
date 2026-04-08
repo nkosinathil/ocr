@@ -18,7 +18,7 @@ class ResultController
         $this->jobService = new JobService($config);
     }
 
-    public function show(int $id): void
+    public function show(string $id): void
     {
         $user = AuthMiddleware::getUser();
 
@@ -49,7 +49,7 @@ class ResultController
         }
     }
 
-    public function download(int $id): void
+    public function download(string $id): void
     {
         try {
             $result = $this->jobService->getJobResult($id);
