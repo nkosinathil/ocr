@@ -61,7 +61,7 @@ class ResultController
                 exit;
             }
 
-            $text = $result['text'] ?? $result['content'] ?? $result['extracted_text'] ?? '';
+            $text = $result['full_text'] ?? $result['text'] ?? $result['content'] ?? $result['extracted_text'] ?? '';
             $filename = 'ocr_result_job_' . $id . '.txt';
 
             header('Content-Type: text/plain; charset=utf-8');
