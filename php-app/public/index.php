@@ -14,7 +14,7 @@ $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $requestUri = rtrim($requestUri, '/') ?: '/';
 $method = $_SERVER['REQUEST_METHOD'];
 
-$publicRoutes = ['/auth/login', '/auth/callback'];
+$publicRoutes = ['/auth/login', '/auth/sso', '/auth/callback', '/register', '/pricing'];
 
 $isPublicRoute = in_array($requestUri, $publicRoutes, true);
 
@@ -31,9 +31,15 @@ try {
     match (true) {
         $requestUri === '/' => (new \App\Controllers\DashboardController($config))->index(),
 
-        $requestUri === '/auth/login' => (new \App\Controllers\AuthController($config))->login(),
+        $requestUri === '/auth/login' => (new \App\Controllers\AuthController($config))->showLogin(),
+        $requestUri === '/auth/sso' => (new \App\Controllers\AuthController($config))->login(),
         $requestUri === '/auth/callback' => (new \App\Controllers\AuthController($config))->callback(),
         $requestUri === '/auth/logout' => (new \App\Controllers\AuthController($config))->logout(),
+
+        $requestUri === '/register' && $method === 'GET' => (new \App\Controllers\RegisterController($config))->index(),
+        $requestUri === '/register' && $method === 'POST' => (new \App\Controllers\RegisterController($config))->store(),
+
+        $requestUri === '/pricing' => (new \App\Controllers\PricingController($config))->index(),
 
         $requestUri === '/upload' && $method === 'GET' => (new \App\Controllers\UploadController($config))->index(),
         $requestUri === '/upload' && $method === 'POST' => (new \App\Controllers\UploadController($config))->store(),
@@ -64,7 +70,7 @@ try {
 function handleApiProxy(string $uri, array $config): void
 {
     $apiBase = rtrim($config['api']['base_url'], '/');
-    $apiPath = substr($uri, 4); // Strip "/api"
+    $apiPath = substr($uri, 4);
     $targetUrl = $apiBase . $apiPath;
 
     if (!empty($_SERVER['QUERY_STRING'])) {

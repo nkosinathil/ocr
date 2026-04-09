@@ -18,6 +18,21 @@ class AuthController
         $this->ssoService = new SsoService($config['sso']);
     }
 
+    public function showLogin(): void
+    {
+        if (isset($_SESSION['user'])) {
+            header('Location: /');
+            exit;
+        }
+
+        $data = ['config' => $this->config, 'title' => 'Sign In'];
+        extract($data);
+        $content = BASE_PATH . '/views/auth/login.php';
+        if (file_exists($content)) {
+            require $content;
+        }
+    }
+
     public function login(): void
     {
         if (isset($_SESSION['user'])) {

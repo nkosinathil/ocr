@@ -46,6 +46,7 @@ $extensions = $allowedExtensions ?? ['pdf', 'jpg', 'jpeg', 'png', 'tiff', 'bmp',
                     <label class="form-label" for="language">OCR Language</label>
                     <select name="language" id="language" class="form-select">
                         <option value="eng" selected>English</option>
+                        <option value="afr">Afrikaans</option>
                         <option value="fra">French</option>
                         <option value="deu">German</option>
                         <option value="spa">Spanish</option>
