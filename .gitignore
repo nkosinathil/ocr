@@ -1,0 +1,35 @@
+# Environment files (contain secrets)
+.env
+
+# PHP
+php-app/vendor/
+php-app/composer.lock
+
+# Python
+python-backend/__pycache__/
+python-backend/**/__pycache__/
+python-backend/**/**/__pycache__/
+python-backend/.venv/
+python-backend/venv/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+postgres-data/
+redis-data/
+minio-data/
+
+# Logs
+*.log
+logs/
