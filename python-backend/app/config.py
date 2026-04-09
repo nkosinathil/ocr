@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8001
 
     DATABASE_HOST: str = "192.168.1.66"
     DATABASE_PORT: int = 5432
@@ -19,22 +19,23 @@ class Settings(BaseSettings):
 
     REDIS_HOST: str = "127.0.0.1"
     REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
+    REDIS_DB: int = 2
 
     MINIO_ENDPOINT: str = "127.0.0.1:9000"
-    MINIO_ACCESS_KEY: str = "minioadmin"
-    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_ACCESS_KEY: str = "mxaadmin"
+    MINIO_SECRET_KEY: str = "StrongPassword123!"
     MINIO_BUCKET_UPLOADS: str = "ocr-uploads"
     MINIO_BUCKET_RESULTS: str = "ocr-results"
     MINIO_USE_SSL: bool = False
 
-    CELERY_BROKER_URL: str = "redis://127.0.0.1:6379/0"
-    CELERY_RESULT_BACKEND: str = "redis://127.0.0.1:6379/1"
+    CELERY_BROKER_URL: str = "redis://127.0.0.1:6379/2"
+    CELERY_RESULT_BACKEND: str = "redis://127.0.0.1:6379/3"
 
     SSO_SERVER_URL: str = "http://192.168.1.59"
-    SSO_TOKEN_VERIFY_URL: str = "http://192.168.1.59/api/token/verify"
+    SSO_TOKEN_VERIFY_URL: str = "http://192.168.1.59/realms/gint/protocol/openid-connect/token/introspect"
+    SSO_JWKS_URI: str = "http://192.168.1.59/realms/gint/protocol/openid-connect/certs"
 
-    CORS_ORIGINS: str = "http://192.168.1.66,http://192.168.1.66:80"
+    CORS_ORIGINS: str = "http://192.168.1.66,http://192.168.1.90"
     TESSERACT_CMD: str = "/usr/bin/tesseract"
 
     @property
