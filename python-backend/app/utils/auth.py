@@ -14,37 +14,49 @@ security = HTTPBearer(auto_error=False)
 
 
 async def verify_token(token: str) -> Dict[str, Any]:
+    """Verify a Keycloak access token via introspection, with local JWT fallback."""
     settings = get_settings()
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 settings.SSO_TOKEN_VERIFY_URL,
-                json={"token": token},
-                headers={"Content-Type": "application/json"},
+                data={
+                    "token": token,
+                    "client_id": "gint-ocr-platform",
+                    "token_type_hint": "access_token",
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
 
         if response.status_code == 200:
             data = response.json()
-            if data.get("valid"):
-                return data.get("user", data)
+            if data.get("active"):
+                return {
+                    "user_id": data.get("sub"),
+                    "email": data.get("email"),
+                    "username": data.get("preferred_username") or data.get("username"),
+                    "name": data.get("name"),
+                    "roles": data.get("realm_access", {}).get("roles", []),
+                }
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token is invalid or expired",
             )
 
-        logger.warning("SSO verification returned status %d", response.status_code)
+        logger.warning("Keycloak introspection returned status %d", response.status_code)
 
     except httpx.RequestError:
-        logger.warning("SSO server unreachable, falling back to local JWT decode")
+        logger.warning("Keycloak unreachable, falling back to local JWT decode")
 
-    # Fallback: decode JWT locally without signature verification
     try:
         payload = jwt.decode(token, options={"verify_signature": False})
         return {
             "user_id": payload.get("sub"),
             "email": payload.get("email"),
-            "roles": payload.get("roles", []),
+            "username": payload.get("preferred_username"),
+            "name": payload.get("name"),
+            "roles": payload.get("realm_access", {}).get("roles", []),
         }
     except JWTError:
         logger.exception("Failed to decode JWT locally")

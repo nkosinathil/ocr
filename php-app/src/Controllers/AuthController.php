@@ -85,6 +85,7 @@ class AuthController
 
             $_SESSION['user'] = $localUser;
             $_SESSION['access_token'] = $tokenData['access_token'];
+            $_SESSION['id_token'] = $tokenData['id_token'] ?? null;
             $_SESSION['refresh_token'] = $tokenData['refresh_token'] ?? null;
             $_SESSION['token_expires'] = time() + ($tokenData['expires_in'] ?? 3600);
 
@@ -101,6 +102,7 @@ class AuthController
     public function logout(): void
     {
         $accessToken = $_SESSION['access_token'] ?? null;
+        $idToken = $_SESSION['id_token'] ?? null;
 
         if ($accessToken !== null) {
             try {
@@ -127,10 +129,10 @@ class AuthController
 
         session_destroy();
 
-        $logoutUrl = $this->config['sso']['server_url'] . '/logout?' . http_build_query([
-            'client_id'                => $this->config['sso']['client_id'],
-            'post_logout_redirect_uri' => $this->config['sso']['logout_uri'],
-        ]);
+        $logoutUrl = $this->ssoService->getLogoutUrl(
+            $idToken ?? '',
+            $this->config['sso']['logout_uri']
+        );
 
         header('Location: ' . $logoutUrl);
         exit;

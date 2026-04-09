@@ -57,11 +57,19 @@ return [
     ],
 
     'sso' => [
-        'server_url'    => env('SSO_SERVER_URL', ''),
-        'client_id'     => env('SSO_CLIENT_ID', ''),
-        'client_secret' => env('SSO_CLIENT_SECRET', ''),
-        'redirect_uri'  => env('SSO_REDIRECT_URI', ''),
-        'logout_uri'    => env('SSO_LOGOUT_URI', ''),
+        'server_url'          => env('SSO_SERVER_URL', ''),
+        'realm'               => env('SSO_REALM', 'gint'),
+        'client_id'           => env('SSO_CLIENT_ID', ''),
+        'client_secret'       => env('SSO_CLIENT_SECRET', ''),
+        'redirect_uri'        => env('SSO_REDIRECT_URI', ''),
+        'logout_uri'          => env('SSO_LOGOUT_URI', ''),
+        'auth_endpoint'       => env('SSO_AUTH_ENDPOINT', ''),
+        'token_endpoint'      => env('SSO_TOKEN_ENDPOINT', ''),
+        'userinfo_endpoint'   => env('SSO_USERINFO_ENDPOINT', ''),
+        'logout_endpoint'     => env('SSO_LOGOUT_ENDPOINT', ''),
+        'introspect_endpoint' => env('SSO_INTROSPECT_ENDPOINT', ''),
+        'jwks_uri'            => env('SSO_JWKS_URI', ''),
+        'revoke_endpoint'     => env('SSO_REVOKE_ENDPOINT', ''),
     ],
 
     'api' => [
