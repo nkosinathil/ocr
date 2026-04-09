@@ -18,7 +18,7 @@ def _log_job_event(job_id: str, level: str, message: str) -> None:
         INSERT INTO job_logs (id, job_id, level, message, created_at)
         VALUES (%s, %s, %s, %s, %s)
         """,
-        (str(uuid.uuid4()), job_id, level, message, datetime.now(timezone.utc)),
+        (str(uuid.uuid4()), job_id, level.lower(), message, datetime.now(timezone.utc)),
     )
 
 
