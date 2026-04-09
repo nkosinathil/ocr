@@ -54,7 +54,7 @@ class UploadController
         try {
             $this->uploadService->validateFile($file);
 
-            $result = $this->uploadService->uploadFile($file, (int) $user['id']);
+            $result = $this->uploadService->uploadFile($file, (string) $user['id']);
 
             $_SESSION['flash_success'] = 'File uploaded successfully.';
             $_SESSION['last_upload'] = $result;
