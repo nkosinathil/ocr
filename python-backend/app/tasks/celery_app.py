@@ -8,6 +8,7 @@ celery_app = Celery(
     "ocr_worker",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    include=["app.tasks.ocr_tasks"],
 )
 
 celery_app.conf.update(
@@ -24,5 +25,3 @@ celery_app.conf.update(
     },
     task_default_queue="default",
 )
-
-celery_app.autodiscover_tasks(["app.tasks"])
