@@ -16,11 +16,10 @@ PHP_SERVER="http://192.168.1.66"
 
 echo "==> Obtaining admin access token..."
 TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
-    -d "grant_type=client_credentials" \
+    -d "grant_type=password" \
     -d "client_id=admin-cli" \
     -d "username=${ADMIN_USER}" \
     -d "password=${ADMIN_PASS}" \
-    -d "grant_type=password" \
     -H "Content-Type: application/x-www-form-urlencoded" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
 if [ -z "$TOKEN" ]; then
