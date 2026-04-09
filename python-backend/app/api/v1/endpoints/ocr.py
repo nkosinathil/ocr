@@ -69,35 +69,41 @@ async def create_ocr_job(request: JobCreateRequest):
 @router.get("/jobs", response_model=list[JobStatusResponse])
 async def list_jobs(
     user_id: Optional[str] = None,
+    status: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
 ):
     if limit > 100:
         limit = 100
 
+    conditions = []
+    params = []
+
     if user_id:
-        rows = execute_query_fetchall(
-            """
-            SELECT id AS job_id, status, progress_percent, pages_processed, pages_total,
-                   started_at, completed_at, error_message, created_at, updated_at
-            FROM ocr_jobs
-            WHERE user_id = %s
-            ORDER BY created_at DESC
-            OFFSET %s LIMIT %s
-            """,
-            (user_id, skip, limit),
-        )
-    else:
-        rows = execute_query_fetchall(
-            """
-            SELECT id AS job_id, status, progress_percent, pages_processed, pages_total,
-                   started_at, completed_at, error_message, created_at, updated_at
-            FROM ocr_jobs
-            ORDER BY created_at DESC
-            OFFSET %s LIMIT %s
-            """,
-            (skip, limit),
-        )
+        conditions.append("user_id = %s")
+        params.append(user_id)
+
+    if status:
+        conditions.append("status = %s")
+        params.append(status)
+
+    where_clause = ""
+    if conditions:
+        where_clause = "WHERE " + " AND ".join(conditions)
+
+    params.extend([skip, limit])
+
+    rows = execute_query_fetchall(
+        f"""
+        SELECT id AS job_id, status, progress_percent, pages_processed, pages_total,
+               started_at, completed_at, error_message, created_at, updated_at
+        FROM ocr_jobs
+        {where_clause}
+        ORDER BY created_at DESC
+        OFFSET %s LIMIT %s
+        """,
+        tuple(params),
+    )
 
     return [JobStatusResponse(**row) for row in rows]
 

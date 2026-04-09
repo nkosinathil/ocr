@@ -25,8 +25,9 @@ class JobController
 
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $limit = 20;
+        $status = $_GET['status'] ?? null;
 
-        $result = $this->jobService->listJobs($user['id'], $page, $limit);
+        $result = $this->jobService->listJobs($user['id'], $page, $limit, $status);
 
         $data = [
             'user'       => $user,

@@ -45,18 +45,26 @@ class JobService
     /**
      * @return array{jobs: array, total: int, page: int, limit: int}
      */
-    public function listJobs(string $userId, int $page = 1, int $limit = 20): array
+    public function listJobs(string $userId, int $page = 1, int $limit = 20, ?string $status = null): array
     {
         try {
-            $response = $this->api->get('ocr/jobs', [
+            $params = [
                 'user_id' => $userId,
-                'page'    => $page,
+                'skip'    => ($page - 1) * $limit,
                 'limit'   => $limit,
-            ]);
+            ];
+
+            if ($status !== null && $status !== '') {
+                $params['status'] = $status;
+            }
+
+            $response = $this->api->get('ocr/jobs', $params);
+
+            $jobs = isset($response['jobs']) ? $response['jobs'] : (isset($response[0]) ? $response : []);
 
             return [
-                'jobs'  => $response['jobs'] ?? $response['data'] ?? $response['items'] ?? [],
-                'total' => $response['total'] ?? $response['count'] ?? 0,
+                'jobs'  => $jobs,
+                'total' => count($jobs),
                 'page'  => $page,
                 'limit' => $limit,
             ];
