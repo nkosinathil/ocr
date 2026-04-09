@@ -80,7 +80,8 @@ $queued = ($stats['queued'] ?? 0) + ($stats['pending'] ?? 0);
                 <tbody>
                     <?php foreach ($recentJobs as $job): ?>
                     <tr>
-                        <td class="font-medium">#<?= htmlspecialchars(substr($job['id'] ?? '', 0, 8)) ?></td>
+                        <?php $jid = $job['job_id'] ?? $job['id'] ?? ''; ?>
+                        <td class="font-medium">#<?= htmlspecialchars(substr($jid, 0, 8)) ?></td>
                         <td class="truncate" style="max-width: 200px;"><?= htmlspecialchars($job['original_filename'] ?? 'Unknown') ?></td>
                         <td>
                             <span class="badge badge-<?= htmlspecialchars($job['status'] ?? 'pending') ?>">
@@ -99,7 +100,7 @@ $queued = ($stats['queued'] ?? 0) + ($stats['pending'] ?? 0);
                         <td class="text-sm text-muted"><?= htmlspecialchars($job['engine'] ?? 'tesseract') ?></td>
                         <td class="text-sm text-muted"><?= !empty($job['created_at']) ? date('M j, H:i', strtotime($job['created_at'])) : '-' ?></td>
                         <td>
-                            <a href="/jobs/<?= htmlspecialchars($job['id'] ?? '') ?>" class="btn btn-ghost btn-sm">View</a>
+                            <a href="/jobs/<?= htmlspecialchars($jid) ?>" class="btn btn-ghost btn-sm">View</a>
                         </td>
                     </tr>
                     <?php endforeach; ?>

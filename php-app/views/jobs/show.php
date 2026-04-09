@@ -1,7 +1,7 @@
 <?php
 $title = 'Job Details';
 $job = $job ?? [];
-$jobId = $job['id'] ?? $jobId ?? '';
+$jobId = $job['job_id'] ?? $job['id'] ?? $jobId ?? '';
 $status = $job['status'] ?? 'pending';
 $isActive = in_array($status, ['pending', 'queued', 'processing']);
 ?>

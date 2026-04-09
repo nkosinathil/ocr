@@ -42,9 +42,10 @@ $totalPages = $totalPages ?? 1;
             </thead>
             <tbody>
                 <?php foreach ($jobs as $job): ?>
-                <tr id="job-row-<?= htmlspecialchars($job['id'] ?? '') ?>" data-job-id="<?= htmlspecialchars($job['id'] ?? '') ?>">
+                <?php $jid = $job['job_id'] ?? $job['id'] ?? ''; ?>
+                <tr id="job-row-<?= htmlspecialchars($jid) ?>" data-job-id="<?= htmlspecialchars($jid) ?>">
                     <td class="font-medium">
-                        <a href="/jobs/<?= htmlspecialchars($job['id'] ?? '') ?>">#<?= htmlspecialchars(substr($job['id'] ?? '', 0, 8)) ?></a>
+                        <a href="/jobs/<?= htmlspecialchars($jid) ?>">#<?= htmlspecialchars(substr($jid, 0, 8)) ?></a>
                     </td>
                     <td>
                         <div class="d-flex align-center gap-1">
@@ -57,7 +58,7 @@ $totalPages = $totalPages ?? 1;
                         </div>
                     </td>
                     <td>
-                        <span class="badge badge-<?= htmlspecialchars($job['status'] ?? 'pending') ?>" id="status-<?= htmlspecialchars($job['id'] ?? '') ?>">
+                        <span class="badge badge-<?= htmlspecialchars($job['status'] ?? 'pending') ?>" id="status-<?= htmlspecialchars($jid) ?>">
                             <span class="badge-dot"></span>
                             <?= ucfirst(htmlspecialchars($job['status'] ?? 'pending')) ?>
                         </span>
@@ -66,7 +67,7 @@ $totalPages = $totalPages ?? 1;
                         <div class="d-flex align-center gap-1">
                             <div class="progress-bar-wrapper" style="width: 64px;">
                                 <div class="progress-bar <?= ($job['status'] ?? '') === 'completed' ? 'completed' : (($job['status'] ?? '') === 'failed' ? 'failed' : '') ?>"
-                                     id="progress-<?= htmlspecialchars($job['id'] ?? '') ?>"
+                                     id="progress-<?= htmlspecialchars($jid) ?>"
                                      style="width: <?= (int)($job['progress_percent'] ?? 0) ?>%">
                                 </div>
                             </div>
@@ -83,12 +84,12 @@ $totalPages = $totalPages ?? 1;
                     </td>
                     <td>
                         <div class="d-flex gap-1">
-                            <a href="/jobs/<?= htmlspecialchars($job['id'] ?? '') ?>" class="btn btn-ghost btn-sm">View</a>
+                            <a href="/jobs/<?= htmlspecialchars($jid) ?>" class="btn btn-ghost btn-sm">View</a>
                             <?php if (($job['status'] ?? '') === 'completed'): ?>
-                                <a href="/results/<?= htmlspecialchars($job['id'] ?? '') ?>" class="btn btn-ghost btn-sm text-success">Results</a>
+                                <a href="/results/<?= htmlspecialchars($jid) ?>" class="btn btn-ghost btn-sm text-success">Results</a>
                             <?php endif; ?>
                             <?php if (in_array($job['status'] ?? '', ['pending', 'queued', 'processing'])): ?>
-                                <button class="btn btn-ghost btn-sm text-danger" onclick="OCRApp.cancelJob('<?= htmlspecialchars($job['id'] ?? '') ?>')">Cancel</button>
+                                <button class="btn btn-ghost btn-sm text-danger" onclick="OCRApp.cancelJob('<?= htmlspecialchars($jid) ?>')">Cancel</button>
                             <?php endif; ?>
                         </div>
                     </td>
