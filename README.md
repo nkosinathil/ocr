@@ -159,7 +159,7 @@ sudo -u postgres psql -d ocr_platform -f /path/to/database/schema.sql
 ```bash
 # Clone and configure
 cd /var/www
-git clone <repo-url> ocr-platform
+git clone https://github.com/nkosinathil/ocr.git ocr-platform
 cd ocr-platform/php-app
 
 # Install dependencies
@@ -180,7 +180,7 @@ sudo systemctl restart apache2
 
 ```bash
 cd /opt/ocr-backend
-git clone <repo-url> .
+git clone https://github.com/nkosinathil/ocr.git .
 cd python-backend
 
 # Create virtual environment
