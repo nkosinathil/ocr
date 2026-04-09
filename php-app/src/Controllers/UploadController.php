@@ -6,16 +6,19 @@ namespace App\Controllers;
 
 use App\Middleware\AuthMiddleware;
 use App\Services\UploadService;
+use App\Services\JobService;
 
 class UploadController
 {
     private array $config;
     private UploadService $uploadService;
+    private JobService $jobService;
 
     public function __construct(array $config)
     {
         $this->config = $config;
         $this->uploadService = new UploadService($config);
+        $this->jobService = new JobService($config);
     }
 
     public function index(): void
@@ -54,13 +57,27 @@ class UploadController
         try {
             $this->uploadService->validateFile($file);
 
-            $result = $this->uploadService->uploadFile($file, (string) $user['id']);
+            $uploadResult = $this->uploadService->uploadFile($file, (string) $user['id']);
 
-            $_SESSION['flash_success'] = 'File uploaded successfully.';
-            $_SESSION['last_upload'] = $result;
+            $uploadId = $uploadResult['upload_id'] ?? null;
 
-            if (isset($result['upload_id'])) {
-                header('Location: /jobs?upload_id=' . urlencode((string) $result['upload_id']));
+            if ($uploadId === null) {
+                $_SESSION['flash_error'] = 'Upload succeeded but no upload ID was returned.';
+                header('Location: /upload');
+                exit;
+            }
+
+            $language = $_POST['language'] ?? 'eng';
+            $engine = $_POST['engine'] ?? 'tesseract';
+
+            $jobResult = $this->jobService->createJob((string) $uploadId, $language, $engine);
+
+            $jobId = $jobResult['job_id'] ?? $jobResult['id'] ?? null;
+
+            $_SESSION['flash_success'] = 'File uploaded and OCR job created successfully.';
+
+            if ($jobId !== null) {
+                header('Location: /jobs/' . urlencode((string) $jobId));
             } else {
                 header('Location: /jobs');
             }
@@ -70,8 +87,8 @@ class UploadController
             header('Location: /upload');
             exit;
         } catch (\RuntimeException $e) {
-            error_log('Upload failed: ' . $e->getMessage());
-            $_SESSION['flash_error'] = 'Upload failed. Please try again.';
+            error_log('Upload/job creation failed: ' . $e->getMessage());
+            $_SESSION['flash_error'] = 'Upload failed: ' . $e->getMessage();
             header('Location: /upload');
             exit;
         }
