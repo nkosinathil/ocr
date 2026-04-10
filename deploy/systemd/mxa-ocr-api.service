@@ -1,0 +1,65 @@
+# ============================================================================
+# Systemd Service for MXA OCR FastAPI
+# ============================================================================
+# Product: MXA OCR
+# Service: FastAPI REST API
+# Port: 8100
+#
+# Installation:
+# 1. Copy this file to /etc/systemd/system/mxa-ocr-api.service
+# 2. Reload systemd: sudo systemctl daemon-reload
+# 3. Enable service: sudo systemctl enable mxa-ocr-api
+# 4. Start service: sudo systemctl start mxa-ocr-api
+# 5. Check status: sudo systemctl status mxa-ocr-api
+# ============================================================================
+
+[Unit]
+Description=MXA OCR FastAPI Service
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=notify
+User=mxa-ocr
+Group=mxa-ocr
+WorkingDirectory=/opt/apps/mxa-ocr/python-backend
+
+# Environment
+Environment="PATH=/opt/apps/mxa-ocr/python-backend/venv/bin"
+EnvironmentFile=/opt/apps/mxa-ocr/python-backend/.env
+
+# Start command
+ExecStart=/opt/apps/mxa-ocr/python-backend/venv/bin/uvicorn \
+    app.main:app \
+    --host 0.0.0.0 \
+    --port 8100 \
+    --workers 4 \
+    --log-level info \
+    --access-log \
+    --use-colors \
+    --proxy-headers \
+    --forwarded-allow-ips='*'
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=0
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/apps/mxa-ocr /var/log/mxa-ocr /tmp/mxa-ocr
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mxa-ocr-api
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,76 @@
+# ============================================================================
+# Systemd Service for MXA OCR Celery Worker
+# ============================================================================
+# Product: MXA OCR
+# Service: Celery Worker for OCR Processing
+# Queue: mxa_ocr
+#
+# Installation:
+# 1. Copy this file to /etc/systemd/system/mxa-ocr-worker.service
+# 2. Reload systemd: sudo systemctl daemon-reload
+# 3. Enable service: sudo systemctl enable mxa-ocr-worker
+# 4. Start service: sudo systemctl start mxa-ocr-worker
+# 5. Check status: sudo systemctl status mxa-ocr-worker
+# ============================================================================
+
+[Unit]
+Description=MXA OCR Celery Worker
+After=network.target redis.service postgresql.service
+Wants=redis.service postgresql.service
+
+[Service]
+Type=forking
+User=mxa-ocr
+Group=mxa-ocr
+WorkingDirectory=/opt/apps/mxa-ocr/python-backend
+
+# Environment
+Environment="PATH=/opt/apps/mxa-ocr/python-backend/venv/bin"
+EnvironmentFile=/opt/apps/mxa-ocr/python-backend/.env
+
+# Start command
+ExecStart=/opt/apps/mxa-ocr/python-backend/venv/bin/celery \
+    -A app.tasks.celery_app worker \
+    --loglevel=info \
+    --concurrency=4 \
+    --max-tasks-per-child=1000 \
+    --time-limit=1800 \
+    --soft-time-limit=1500 \
+    -Q mxa_ocr \
+    --pidfile=/var/run/mxa-ocr/celery-worker.pid \
+    --logfile=/var/log/mxa-ocr/celery-worker.log \
+    --detach
+
+# Stop command
+ExecStop=/bin/kill -TERM $MAINPID
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=0
+
+# PID file
+PIDFile=/var/run/mxa-ocr/celery-worker.pid
+
+# Runtime directory
+RuntimeDirectory=mxa-ocr
+RuntimeDirectoryMode=0755
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/apps/mxa-ocr /var/log/mxa-ocr /tmp/mxa-ocr /var/run/mxa-ocr
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mxa-ocr-worker
+
+[Install]
+WantedBy=multi-user.target
