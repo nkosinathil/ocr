@@ -1,0 +1,176 @@
+# MXA OCR - Git Ignore File
+# This is a standalone product - do not share this file with other products
+
+# ============================================================================
+# PHP Application
+# ============================================================================
+
+# Environment files (contains secrets)
+php-app/.env
+php-app/.env.local
+php-app/.env.production
+
+# Composer dependencies
+php-app/vendor/
+composer.phar
+composer.lock
+
+# PHP temporary files
+php-app/storage/logs/*.log
+php-app/storage/cache/*
+php-app/storage/sessions/*
+!php-app/storage/logs/.gitkeep
+!php-app/storage/cache/.gitkeep
+!php-app/storage/sessions/.gitkeep
+
+# Uploaded files (should be in MinIO)
+php-app/storage/uploads/*
+!php-app/storage/uploads/.gitkeep
+
+# PHP IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================================
+# Python Backend
+# ============================================================================
+
+# Environment files (contains secrets)
+python-backend/.env
+python-backend/.env.local
+python-backend/.env.production
+
+# Python virtual environment
+python-backend/venv/
+python-backend/.venv/
+python-backend/env/
+python-backend/.env/
+
+# Python cache
+python-backend/__pycache__/
+python-backend/**/__pycache__/
+python-backend/*.pyc
+python-backend/*.pyo
+python-backend/*.pyd
+python-backend/.pytest_cache/
+python-backend/.mypy_cache/
+python-backend/.ruff_cache/
+
+# Python distribution / packaging
+python-backend/.Python
+python-backend/build/
+python-backend/develop-eggs/
+python-backend/dist/
+python-backend/downloads/
+python-backend/eggs/
+python-backend/.eggs/
+python-backend/lib/
+python-backend/lib64/
+python-backend/parts/
+python-backend/sdist/
+python-backend/var/
+python-backend/wheels/
+python-backend/*.egg-info/
+python-backend/.installed.cfg
+python-backend/*.egg
+
+# Celery
+python-backend/celerybeat-schedule
+python-backend/celerybeat.pid
+
+# Test coverage
+python-backend/.coverage
+python-backend/htmlcov/
+python-backend/coverage.xml
+
+# ============================================================================
+# Database
+# ============================================================================
+
+# Database dumps (may contain sensitive data)
+database/*.dump
+database/*.sql.gz
+database/backups/*
+!database/backups/.gitkeep
+
+# ============================================================================
+# Deployment
+# ============================================================================
+
+# Production secrets
+deploy/**/*.secret
+deploy/**/*.key
+deploy/**/*.pem
+deploy/**/*.crt
+
+# ============================================================================
+# Logs
+# ============================================================================
+
+# All log files
+*.log
+logs/
+*.log.*
+
+# ============================================================================
+# OS Files
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ============================================================================
+# Editor/IDE
+# ============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains (PHPStorm, PyCharm)
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+
+/tmp/
+*.tmp
+*.temp
+*.bak
+*.old
+
+# ============================================================================
+# Documentation Build Output
+# ============================================================================
+
+docs/_build/
+docs/.doctrees/
+site/
