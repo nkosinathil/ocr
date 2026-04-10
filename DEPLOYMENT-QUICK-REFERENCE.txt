@@ -1,0 +1,198 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    MXA OCR - DEPLOYMENT QUICK REFERENCE                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+📦 ONE-COMMAND PRODUCTION DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+From your local machine:
+
+    cd deploy/scripts
+    bash pre-deploy-check.sh && bash deploy-master.sh && bash post-deploy-validate.sh
+
+═══════════════════════════════════════════════════════════════════════════════
+🚀 DEPLOYMENT SCRIPTS
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────┬──────────────────────────────────────────┐
+│ Script                          │ Purpose                                  │
+├─────────────────────────────────┼──────────────────────────────────────────┤
+│ pre-deploy-check.sh             │ Verify prerequisites before deployment   │
+│ deploy-master.sh                │ Full 3-server production deployment      │
+│ post-deploy-validate.sh         │ Validate deployment after completion     │
+│ deploy-single-server.sh         │ Single server for testing                │
+│ rollback.sh                     │ Rollback to previous version             │
+└─────────────────────────────────┴──────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+🖥️  SERVER ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  App Server (192.168.1.66)                                               │
+│  • PHP 8.1 + Apache    • PostgreSQL 14    • Web UI                       │
+│  Location: /var/www/mxa-ocr-app/current/php-app                          │
+└──────────────────────────────────────────────────────────────────────────┘
+                                    ↕
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Python Server (192.168.1.90)                                            │
+│  • Python 3.10 + FastAPI    • Celery    • Redis    • MinIO              │
+│  Location: /opt/apps/mxa-ocr/python-backend                              │
+└──────────────────────────────────────────────────────────────────────────┘
+                                    ↕
+┌──────────────────────────────────────────────────────────────────────────┐
+│  SSO Server (192.168.1.59)                                               │
+│  • Keycloak 20+    • OIDC Authentication                                 │
+└──────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+⚙️  CONFIGURATION FILES
+═══════════════════════════════════════════════════════════════════════════════
+
+PHP Application .env:
+    Location: /var/www/mxa-ocr-app/current/php-app/.env
+    
+    Critical values:
+    • APP_KEY (generate: openssl rand -hex 32)
+    • KEYCLOAK_CLIENT_SECRET (from Keycloak admin console)
+    • DB_PASSWORD
+    • MINIO_ACCESS_KEY
+    • MINIO_SECRET_KEY
+
+Python Backend .env:
+    Location: /opt/apps/mxa-ocr/python-backend/.env
+    
+    Critical values:
+    • DB_PASSWORD (same as PHP)
+    • MINIO_ACCESS_KEY (same as PHP)
+    • MINIO_SECRET_KEY (same as PHP)
+    • REDIS_PASSWORD (if Redis has auth)
+
+═══════════════════════════════════════════════════════════════════════════════
+🔍 TESTING & VALIDATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Test Web Application:
+    curl https://ocr.gismartanalytics.com/
+
+Test Python API:
+    curl http://192.168.1.90:8100/api/v1/health
+
+Test Database:
+    ssh root@192.168.1.66
+    sudo -u postgres psql -d mxa_ocr
+
+Test MinIO:
+    ssh root@192.168.1.90
+    mc ls mxaocr/
+
+═══════════════════════════════════════════════════════════════════════════════
+📊 SERVICE MANAGEMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+On Python Server (192.168.1.90):
+    systemctl status mxa-ocr-api          # Check FastAPI status
+    systemctl status mxa-ocr-worker       # Check Celery worker status
+    systemctl restart mxa-ocr-api         # Restart FastAPI
+    systemctl restart mxa-ocr-worker      # Restart Celery worker
+
+On App Server (192.168.1.66):
+    systemctl status apache2              # Check Apache status
+    systemctl status postgresql           # Check PostgreSQL status
+    systemctl reload apache2              # Reload Apache config
+
+═══════════════════════════════════════════════════════════════════════════════
+📝 VIEW LOGS
+═══════════════════════════════════════════════════════════════════════════════
+
+Python API logs:
+    ssh root@192.168.1.90
+    journalctl -u mxa-ocr-api -f
+
+Celery worker logs:
+    ssh root@192.168.1.90
+    journalctl -u mxa-ocr-worker -f
+
+Apache error logs:
+    ssh root@192.168.1.66
+    tail -f /var/log/apache2/mxa-ocr-error.log
+
+Apache access logs:
+    ssh root@192.168.1.66
+    tail -f /var/log/apache2/mxa-ocr-access.log
+
+PostgreSQL logs:
+    ssh root@192.168.1.66
+    tail -f /var/log/postgresql/postgresql-*.log
+
+═══════════════════════════════════════════════════════════════════════════════
+🔄 ROLLBACK
+═══════════════════════════════════════════════════════════════════════════════
+
+If deployment fails:
+    cd deploy/scripts
+    bash rollback.sh
+
+Then select the release you want to rollback to.
+
+═══════════════════════════════════════════════════════════════════════════════
+🔧 KEYCLOAK CONFIGURATION
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Login to Keycloak:
+   http://192.168.1.59:8080/admin
+
+2. Create new client:
+   • Client ID: mxa-ocr-web
+   • Client Protocol: openid-connect
+   • Access Type: confidential
+   • Valid Redirect URIs: https://ocr.gismartanalytics.com/auth/callback
+   • Web Origins: https://ocr.gismartanalytics.com
+
+3. Copy Client Secret from Credentials tab
+
+4. Update PHP .env:
+   ssh root@192.168.1.66
+   nano /var/www/mxa-ocr-app/current/php-app/.env
+   # Set: KEYCLOAK_CLIENT_SECRET=<your-secret>
+
+5. Restart Apache:
+   systemctl reload apache2
+
+═══════════════════════════════════════════════════════════════════════════════
+🚨 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Service won't start:
+    journalctl -u <service-name> -n 100 --no-pager
+
+Database connection failed:
+    psql -U mxa_ocr_user -d mxa_ocr -h localhost
+
+API not responding:
+    netstat -tlnp | grep 8100
+    curl http://localhost:8100/api/v1/health
+
+Permission errors:
+    # PHP: chown -R www-data:www-data /var/www/mxa-ocr-app
+    # Python: chown -R mxa-ocr:mxa-ocr /opt/apps/mxa-ocr
+
+═══════════════════════════════════════════════════════════════════════════════
+📚 DOCUMENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Full guides:
+    • DEPLOYMENT-PACKAGE.md         - Comprehensive overview
+    • deploy/QUICK-DEPLOY.md        - Step-by-step guide
+    • deploy/scripts/README.md      - Script documentation
+    • docs/deployment.md            - Detailed deployment docs
+    • docs/troubleshooting.md       - Common issues & solutions
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Ready to deploy! 🚀
+
+Run: cd deploy/scripts && bash deploy-master.sh
+
+═══════════════════════════════════════════════════════════════════════════════
