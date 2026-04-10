@@ -6,9 +6,9 @@
 # ============================================================================
 
 # Web Framework
-fastapi==0.104.1
+fastapi==0.109.1
 uvicorn[standard]==0.24.0
-python-multipart==0.0.6
+python-multipart==0.0.22
 
 # Task Queue
 celery==5.3.4
@@ -25,7 +25,7 @@ boto3==1.29.7
 # OCR Processing
 pytesseract==0.3.10
 pdf2image==1.16.3
-Pillow==10.1.0
+Pillow==10.3.0
 PyMuPDF==1.23.8
 
 # Data Validation
@@ -49,7 +49,7 @@ pytz==2023.3
 # Development Tools (optional)
 pytest==7.4.3
 pytest-asyncio==0.21.1
-black==23.11.0
+black==26.3.1
 flake8==6.1.0
 mypy==1.7.1
 
