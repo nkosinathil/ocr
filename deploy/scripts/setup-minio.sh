@@ -14,17 +14,66 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+read_env_value() {
+    local env_file="$1"
+    local key="$2"
+    local value
+
+    value="$(grep -E "^${key}=" "$env_file" | tail -n1 | cut -d'=' -f2- || true)"
+    value="${value%\"}"
+    value="${value#\"}"
+    value="${value%\'}"
+    value="${value#\'}"
+    echo "$value"
+}
+
 echo -e "${GREEN}==================================================================${NC}"
 echo -e "${GREEN}MXA OCR - MinIO Setup${NC}"
 echo -e "${GREEN}==================================================================${NC}"
 echo ""
 
 # Configuration
-MINIO_ENDPOINT="${MINIO_ENDPOINT:-192.168.1.90:9000}"
-MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-minio-access-key}"
-MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-minio-secret-key}"
-BUCKET_INPUT="mxa-ocr-input"
-BUCKET_OUTPUT="mxa-ocr-output"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ENV_FILE=""
+
+for candidate in \
+    "$DEPLOY_ROOT/python-backend/.env" \
+    "$DEPLOY_ROOT/current/python-backend/.env"
+do
+    if [ -f "$candidate" ]; then
+        ENV_FILE="$candidate"
+        break
+    fi
+done
+
+ENV_MINIO_ENDPOINT=""
+ENV_MINIO_ACCESS_KEY=""
+ENV_MINIO_SECRET_KEY=""
+ENV_MINIO_BUCKET_INPUT=""
+ENV_MINIO_BUCKET_OUTPUT=""
+ENV_MINIO_SECURE=""
+
+if [ -n "$ENV_FILE" ]; then
+    ENV_MINIO_ENDPOINT="$(read_env_value "$ENV_FILE" "MINIO_ENDPOINT")"
+    ENV_MINIO_ACCESS_KEY="$(read_env_value "$ENV_FILE" "MINIO_ACCESS_KEY")"
+    ENV_MINIO_SECRET_KEY="$(read_env_value "$ENV_FILE" "MINIO_SECRET_KEY")"
+    ENV_MINIO_BUCKET_INPUT="$(read_env_value "$ENV_FILE" "MINIO_BUCKET_INPUT")"
+    ENV_MINIO_BUCKET_OUTPUT="$(read_env_value "$ENV_FILE" "MINIO_BUCKET_OUTPUT")"
+    ENV_MINIO_SECURE="$(read_env_value "$ENV_FILE" "MINIO_SECURE")"
+fi
+
+MINIO_ENDPOINT="${MINIO_ENDPOINT:-${ENV_MINIO_ENDPOINT:-192.168.1.90:9000}}"
+MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-${ENV_MINIO_ACCESS_KEY:-minio-access-key}}"
+MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-${ENV_MINIO_SECRET_KEY:-minio-secret-key}}"
+BUCKET_INPUT="${MINIO_BUCKET_INPUT:-${ENV_MINIO_BUCKET_INPUT:-mxa-ocr-input}}"
+BUCKET_OUTPUT="${MINIO_BUCKET_OUTPUT:-${ENV_MINIO_BUCKET_OUTPUT:-mxa-ocr-output}}"
+MINIO_SECURE="${MINIO_SECURE:-${ENV_MINIO_SECURE:-false}}"
+
+MINIO_PROTOCOL="http"
+case "${MINIO_SECURE,,}" in
+    true|1|yes) MINIO_PROTOCOL="https" ;;
+esac
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
@@ -53,9 +102,17 @@ fi
 # ============================================================================
 
 echo -e "${YELLOW}Step 2: Configuring MinIO connection...${NC}"
+echo -e "${YELLOW}Using endpoint: ${MINIO_PROTOCOL}://${MINIO_ENDPOINT}${NC}"
+if [ -n "$ENV_FILE" ]; then
+    echo -e "${YELLOW}Using MinIO settings from: ${ENV_FILE}${NC}"
+fi
 
 # Configure alias
-mc alias set mxaocr http://${MINIO_ENDPOINT} ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY}
+if ! mc alias set mxaocr "${MINIO_PROTOCOL}://${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}"; then
+    echo -e "${RED}Failed to configure MinIO alias (mxaocr)${NC}"
+    echo -e "${YELLOW}Verify endpoint and credentials. Internal envs usually require MINIO_SECURE=false and a reachable private endpoint.${NC}"
+    exit 1
+fi
 
 # Test connection
 if mc admin info mxaocr &>/dev/null; then
