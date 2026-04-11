@@ -1,8 +1,10 @@
 # Sudo Password Deployment Guide
 
-## Problem Fixed
+## Problems Fixed
 
 The deployment script now properly handles sudo password prompts when passwordless sudo is not configured.
+
+### Issue 1: Password Not Being Passed to Sudo
 
 **Previous Error:**
 ```
@@ -12,12 +14,25 @@ Pseudo-terminal will not be allocated because stdin is not a terminal
 
 **Root Cause:** Using `ssh -t` with heredoc (`<< ENDSSH`) redirects stdin from the heredoc content, not from your terminal, preventing sudo from reading passwords interactively.
 
+**Fix:** Changed from `ssh -t` to `ssh` without `-t` flag, and properly configured password passing via `sudo -S`.
+
+### Issue 2: Password Variable Not Expanding in Heredocs
+
+**Previous Error:**
+```
+bash: line 2: cd: /var/www/mxa-ocr-app/current/deploy/scripts: No such file or directory
+```
+
+**Root Cause:** Heredoc delimiters used quotes (`<< 'ENDSSH'`), which prevents variable expansion. The password variable `$SUDO_APP_PASS` was not being expanded, so the literal string `'$SUDO_APP_PASS'` was sent to sudo instead of the actual password.
+
+**Fix:** Removed quotes from heredoc delimiters (`<< ENDSSH` instead of `<< 'ENDSSH'`) to enable variable expansion, and removed backslash escaping from password variables.
+
 ## Solution Implemented
 
 The script now:
 1. **Detects** if passwordless sudo is configured
 2. **Prompts once** for passwords at the beginning (if needed)
-3. **Passes passwords** securely to sudo using `-S` flag
+3. **Passes passwords** securely to sudo using `-S` flag with proper variable expansion
 4. **Works with both** passwordless and password-based sudo
 
 ## How to Use
