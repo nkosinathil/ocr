@@ -7,13 +7,19 @@ This is specific to the MXA OCR product only.
 
 import json
 from typing import List, Optional
-from pydantic_settings import BaseSettings
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+    )
+
     # Application
     app_name: str = "MXA OCR Backend"
     app_env: str = "production"
@@ -92,10 +98,23 @@ class Settings(BaseSettings):
     worker_timeout: int = 300
     request_timeout: int = 60
     connection_pool_size: int = 100
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+
+    @field_validator("celery_accept_content", mode="before")
+    @classmethod
+    def _coerce_celery_accept_content(cls, v: object) -> str:
+        """Coerce celery_accept_content to a plain string.
+
+        pydantic-settings v2 ``EnvSettingsSource`` may attempt to
+        JSON-decode the raw env-var value before the field type is
+        checked.  If the env var contains a JSON array such as
+        ``["json"]``, the decoded ``list`` must be flattened back to a
+        comma-separated string so downstream code (``_parse_str_as_list``)
+        can handle it uniformly.  Plain strings like ``json`` are
+        returned as-is.
+        """
+        if isinstance(v, list):
+            return ",".join(str(item) for item in v)
+        return str(v) if v is not None else "json"
 
     def _parse_str_as_list(self, value: str) -> List[str]:
         """Parse a string value as a list, accepting JSON arrays or comma-separated values."""
