@@ -5,8 +5,10 @@ Manages all environment-based configuration for the Python backend.
 This is specific to the MXA OCR product only.
 """
 
+import json
 import os
-from typing import List, Optional
+from typing import Any, List, Optional
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -96,6 +98,20 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+
+    @field_validator('celery_accept_content', 'cors_origins', mode='before')
+    @classmethod
+    def _parse_list_field(cls, v: Any) -> Any:
+        """Accept both JSON array format and comma-separated plain strings."""
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, ValueError):
+                pass
+            return [item.strip() for item in v.split(',') if item.strip()]
+        return v
         
     @property
     def database_url(self) -> str:
