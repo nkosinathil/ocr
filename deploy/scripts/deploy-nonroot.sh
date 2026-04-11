@@ -236,6 +236,7 @@ RELEASE_DIR="${APP_SERVER_DIR}/releases/\$(date +%Y%m%d-%H%M%S)"
 echo "$SUDO_APP_PASS" | sudo -S mkdir -p ${APP_SERVER_DIR}/releases
 echo "$SUDO_APP_PASS" | sudo -S mkdir -p \${RELEASE_DIR}
 echo "$SUDO_APP_PASS" | sudo -S cp -r ocr/* \${RELEASE_DIR}/
+echo "$SUDO_APP_PASS" | sudo -S find \${RELEASE_DIR}/deploy/scripts -type f -name "*.sh" -exec sed -i 's/\r$//' {} +
 
 # Update symlink
 echo "$SUDO_APP_PASS" | sudo -S ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
@@ -254,6 +255,7 @@ RELEASE_DIR="${APP_SERVER_DIR}/releases/\$(date +%Y%m%d-%H%M%S)"
 sudo mkdir -p ${APP_SERVER_DIR}/releases
 sudo mkdir -p \${RELEASE_DIR}
 sudo cp -r ocr/* \${RELEASE_DIR}/
+sudo find \${RELEASE_DIR}/deploy/scripts -type f -name "*.sh" -exec sed -i 's/\r$//' {} +
 
 # Update symlink
 sudo ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
@@ -342,6 +344,7 @@ tar -xzf mxa-ocr-deploy.tar.gz
 # Create application directory with sudo
 echo "$SUDO_PYTHON_PASS" | sudo -S mkdir -p ${PYTHON_SERVER_DIR}
 echo "$SUDO_PYTHON_PASS" | sudo -S cp -r ocr/* ${PYTHON_SERVER_DIR}/
+echo "$SUDO_PYTHON_PASS" | sudo -S find ${PYTHON_SERVER_DIR}/deploy/scripts -type f -name "*.sh" -exec sed -i 's/\r$//' {} +
 
 echo "✓ Code deployed to Python Server"
 ENDSSH
@@ -354,6 +357,7 @@ tar -xzf mxa-ocr-deploy.tar.gz
 # Create application directory with sudo
 sudo mkdir -p ${PYTHON_SERVER_DIR}
 sudo cp -r ocr/* ${PYTHON_SERVER_DIR}/
+sudo find ${PYTHON_SERVER_DIR}/deploy/scripts -type f -name "*.sh" -exec sed -i 's/\r$//' {} +
 
 echo "✓ Code deployed to Python Server"
 ENDSSH
