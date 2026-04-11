@@ -112,41 +112,43 @@ a2enmod proxy
 a2enmod proxy_http
 
 # Copy and enable vhost
-VHOST_SRC="$DEPLOY_DIR/apache/mxa-ocr.conf"
+VHOST_SRC_SSL="$DEPLOY_DIR/apache/mxa-ocr.conf"
+VHOST_SRC_HTTP_FALLBACK="$DEPLOY_DIR/apache/mxa-ocr-http.conf"
 VHOST_DEST="/etc/apache2/sites-available/mxa-ocr.conf"
 APACHE_SITE_ENABLED_PATH="/etc/apache2/sites-enabled/mxa-ocr.conf"
 APACHE_CONFIG_CHANGED=false
 APACHE_SITE_WAS_ENABLED=false
 MISSING_SSL_FILES=false
 [ -e "$APACHE_SITE_ENABLED_PATH" ] && APACHE_SITE_WAS_ENABLED=true
+SELECTED_VHOST_SRC="$VHOST_SRC_SSL"
+SELECTED_VHOST_LABEL="Apache SSL vhost config"
 
-if install_if_different "$VHOST_SRC" "$VHOST_DEST" "Apache vhost config"; then
-    APACHE_CONFIG_CHANGED=true
-    SSL_CERT_FILE="/etc/ssl/certs/ocr.gismartanalytics.com.crt"
-    SSL_KEY_FILE="/etc/ssl/private/ocr.gismartanalytics.com.key"
-    SSL_CHAIN_FILE="/etc/ssl/certs/ca-bundle.crt"
+SSL_CERT_FILE="/etc/ssl/certs/ocr.gismartanalytics.com.crt"
+SSL_KEY_FILE="/etc/ssl/private/ocr.gismartanalytics.com.key"
+SSL_CHAIN_FILE="/etc/ssl/certs/ca-bundle.crt"
 
-    for ssl_file in "$SSL_CERT_FILE" "$SSL_KEY_FILE" "$SSL_CHAIN_FILE"; do
-        if [ ! -f "$ssl_file" ]; then
-            echo -e "${YELLOW}Warning: Missing SSL file: $ssl_file${NC}"
-            MISSING_SSL_FILES=true
-        fi
-    done
-
-    if [ "$MISSING_SSL_FILES" = false ]; then
-        a2ensite mxa-ocr
-    else
-        echo -e "${YELLOW}Skipping site enable because required SSL files are missing${NC}"
-        echo -e "${YELLOW}Install certificates, then run: a2ensite mxa-ocr && apache2ctl configtest && systemctl reload apache2${NC}"
+for ssl_file in "$SSL_CERT_FILE" "$SSL_KEY_FILE" "$SSL_CHAIN_FILE"; do
+    if [ ! -f "$ssl_file" ]; then
+        echo -e "${YELLOW}Warning: Missing SSL file: $ssl_file${NC}"
+        MISSING_SSL_FILES=true
     fi
+done
+
+if [ "$MISSING_SSL_FILES" = true ]; then
+    echo -e "${YELLOW}Using internal HTTP-only fallback vhost because SSL certificates are not available${NC}"
+    SELECTED_VHOST_SRC="$VHOST_SRC_HTTP_FALLBACK"
+    SELECTED_VHOST_LABEL="Apache HTTP-only fallback vhost config"
+fi
+
+if install_if_different "$SELECTED_VHOST_SRC" "$VHOST_DEST" "$SELECTED_VHOST_LABEL"; then
+    APACHE_CONFIG_CHANGED=true
+    a2ensite mxa-ocr
 fi
 
 # Step 7: Reload Apache
 echo -e "${YELLOW}Step 7: Reloading Apache...${NC}"
 if [ "$APACHE_CONFIG_CHANGED" = true ]; then
-    if [ "$MISSING_SSL_FILES" = true ]; then
-        echo -e "${YELLOW}Apache reload skipped due to missing SSL files${NC}"
-    elif apache2ctl configtest; then
+    if apache2ctl configtest; then
         systemctl reload apache2
         echo -e "${GREEN}Apache reloaded${NC}"
     else
