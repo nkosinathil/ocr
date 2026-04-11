@@ -14,6 +14,26 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+install_if_different() {
+    local src="$1"
+    local dst="$2"
+    local label="$3"
+
+    if [ ! -f "$src" ]; then
+        echo -e "${YELLOW}Warning: ${label} source not found at $src${NC}"
+        return 1
+    fi
+
+    if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+        echo -e "${YELLOW}${label} is unchanged (skipping)${NC}"
+        return 2
+    fi
+
+    cp "$src" "$dst"
+    echo -e "${GREEN}${label} installed/updated${NC}"
+    return 0
+}
+
 echo -e "${GREEN}==================================================================${NC}"
 echo -e "${GREEN}MXA OCR - PHP Application Setup${NC}"
 echo -e "${GREEN}==================================================================${NC}"
@@ -25,6 +45,8 @@ CURRENT_DIR="$APP_DIR/current"
 PHP_APP_DIR="$CURRENT_DIR/php-app"
 WEB_USER="www-data"
 WEB_GROUP="www-data"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
@@ -90,17 +112,21 @@ a2enmod proxy
 a2enmod proxy_http
 
 # Copy and enable vhost
-VHOST_SRC="$(dirname "$(dirname "$0")")/apache/mxa-ocr.conf"
-if [ -f "$VHOST_SRC" ]; then
-    cp "$VHOST_SRC" /etc/apache2/sites-available/mxa-ocr.conf
+VHOST_SRC="$DEPLOY_DIR/apache/mxa-ocr.conf"
+APACHE_CONFIG_CHANGED=false
+if install_if_different "$VHOST_SRC" "/etc/apache2/sites-available/mxa-ocr.conf" "Apache vhost config"; then
+    APACHE_CONFIG_CHANGED=true
     a2ensite mxa-ocr
-else
-    echo -e "${YELLOW}Warning: Apache vhost config not found at $VHOST_SRC${NC}"
 fi
 
 # Step 7: Reload Apache
 echo -e "${YELLOW}Step 7: Reloading Apache...${NC}"
-systemctl reload apache2
+if [ "$APACHE_CONFIG_CHANGED" = true ]; then
+    systemctl reload apache2
+    echo -e "${GREEN}Apache reloaded${NC}"
+else
+    echo -e "${YELLOW}No Apache config changes detected (skipping reload)${NC}"
+fi
 
 echo ""
 echo -e "${GREEN}==================================================================${NC}"

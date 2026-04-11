@@ -14,6 +14,28 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+install_if_different() {
+    local src="$1"
+    local dst="$2"
+    local label="$3"
+
+    if [ ! -f "$src" ]; then
+        echo -e "${RED}Error: ${label} source file not found at $src${NC}"
+        return 1
+    fi
+
+    if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+        echo -e "${YELLOW}${label} is unchanged (skipping)${NC}"
+        return 2
+    fi
+
+    cp "$src" "$dst"
+    if [ -f "$dst" ]; then
+        echo -e "${GREEN}${label} installed/updated${NC}"
+    fi
+    return 0
+}
+
 echo -e "${GREEN}==================================================================${NC}"
 echo -e "${GREEN}MXA OCR - Python Backend Setup${NC}"
 echo -e "${GREEN}==================================================================${NC}"
@@ -97,27 +119,27 @@ chown $APP_USER:$APP_GROUP .env
 
 # Step 7: Install systemd services
 echo -e "${YELLOW}Step 7: Installing systemd services...${NC}"
+SYSTEMD_CHANGED=false
 
 # FastAPI service
 FASTAPI_SERVICE_SRC="$DEPLOY_DIR/systemd/mxa-ocr-api.service"
-if [ -f "$FASTAPI_SERVICE_SRC" ]; then
-    cp "$FASTAPI_SERVICE_SRC" /etc/systemd/system/
-    echo -e "${GREEN}FastAPI service installed${NC}"
-else
-    echo -e "${RED}Error: FastAPI service file not found${NC}"
+if install_if_different "$FASTAPI_SERVICE_SRC" "/etc/systemd/system/mxa-ocr-api.service" "FastAPI service"; then
+    SYSTEMD_CHANGED=true
 fi
 
 # Celery worker service
 CELERY_SERVICE_SRC="$DEPLOY_DIR/systemd/mxa-ocr-worker.service"
-if [ -f "$CELERY_SERVICE_SRC" ]; then
-    cp "$CELERY_SERVICE_SRC" /etc/systemd/system/
-    echo -e "${GREEN}Celery worker service installed${NC}"
-else
-    echo -e "${RED}Error: Celery worker service file not found${NC}"
+if install_if_different "$CELERY_SERVICE_SRC" "/etc/systemd/system/mxa-ocr-worker.service" "Celery worker service"; then
+    SYSTEMD_CHANGED=true
 fi
 
 # Reload systemd
-systemctl daemon-reload
+if [ "$SYSTEMD_CHANGED" = true ]; then
+    systemctl daemon-reload
+    echo -e "${GREEN}systemd daemon reloaded${NC}"
+else
+    echo -e "${YELLOW}No service file changes detected (skipping daemon-reload)${NC}"
+fi
 
 # Step 8: Enable and start services
 echo -e "${YELLOW}Step 8: Enabling services...${NC}"
