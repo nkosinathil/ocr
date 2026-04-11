@@ -63,7 +63,14 @@ EOF
 
 # Step 4: Run schema
 echo -e "${YELLOW}Step 4: Running database schema...${NC}"
-PGPASSWORD="$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -f "$REPO_ROOT/database/schema.sql"
+SCHEMA_ALREADY_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -tAc \
+    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users');")
+
+if [ "$SCHEMA_ALREADY_EXISTS" = "t" ]; then
+    echo -e "${YELLOW}Schema already exists - skipping full schema import${NC}"
+else
+    PGPASSWORD="$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -f "$REPO_ROOT/database/schema.sql"
+fi
 
 echo ""
 echo -e "${GREEN}==================================================================${NC}"
