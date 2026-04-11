@@ -1,0 +1,114 @@
+# MXA OCR - Non-Root Deployment Quick Reference
+
+## One-Command Deployments
+
+### Interactive (Easiest - Prompts for usernames)
+```bash
+cd deploy/scripts && bash deploy-quick.sh
+```
+
+### Same Username on All Servers
+```bash
+cd deploy/scripts
+SSH_USER_APP=yourname SSH_USER_PYTHON=yourname SSH_USER_SSO=yourname bash deploy-nonroot.sh
+```
+
+### Different Usernames Per Server
+```bash
+cd deploy/scripts
+SSH_USER_APP=john SSH_USER_PYTHON=jane SSH_USER_SSO=admin bash deploy-nonroot.sh
+```
+
+## Prerequisites Setup (One-Time)
+
+### 1. Copy SSH Keys to All Servers
+```bash
+# For each server, run:
+cat ~/.ssh/id_rsa.pub | ssh username@192.168.1.66 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+cat ~/.ssh/id_rsa.pub | ssh username@192.168.1.90 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+cat ~/.ssh/id_rsa.pub | ssh username@192.168.1.59 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+### 2. Test SSH Access (No Password Prompt)
+```bash
+ssh username@192.168.1.66 "echo 'Success'"
+ssh username@192.168.1.90 "echo 'Success'"
+ssh username@192.168.1.59 "echo 'Success'"
+```
+
+### 3. Enable Passwordless Sudo (Optional but Recommended)
+```bash
+# On each server:
+ssh username@192.168.1.66
+sudo visudo
+# Add line: username ALL=(ALL) NOPASSWD:ALL
+# Save and exit
+```
+
+## Common Scenarios
+
+### From Windows Git Bash
+```bash
+cd ~/OneDrive/Documents/deployment/ocr/deploy/scripts
+SSH_USER_APP=myusername SSH_USER_PYTHON=myusername SSH_USER_SSO=administrator bash deploy-nonroot.sh
+```
+
+### From Linux/Mac Terminal
+```bash
+cd /path/to/ocr/deploy/scripts
+SSH_USER_APP=$USER SSH_USER_PYTHON=$USER SSH_USER_SSO=$USER bash deploy-nonroot.sh
+```
+
+### Using Configuration File (Reusable)
+```bash
+# One-time setup
+cd deploy/scripts
+cp deploy-config.sh my-config.sh
+nano my-config.sh  # Edit with your usernames
+
+# Deploy (reuse config each time)
+source my-config.sh && bash deploy-nonroot.sh
+```
+
+## Troubleshooting Commands
+
+### Test SSH Connection
+```bash
+ssh username@192.168.1.66 "echo 'Connected'"
+```
+
+### Test Sudo Access
+```bash
+ssh username@192.168.1.66 "sudo -v"
+```
+
+### View Service Logs
+```bash
+ssh username@192.168.1.90 "sudo journalctl -u mxa-ocr-api -f"
+ssh username@192.168.1.90 "sudo journalctl -u mxa-ocr-worker -f"
+ssh username@192.168.1.66 "sudo tail -f /var/log/apache2/mxa-ocr-error.log"
+```
+
+### Restart Services
+```bash
+ssh username@192.168.1.90 "sudo systemctl restart mxa-ocr-api"
+ssh username@192.168.1.90 "sudo systemctl restart mxa-ocr-worker"
+ssh username@192.168.1.66 "sudo systemctl reload apache2"
+```
+
+## Environment Variables Reference
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SSH_USER_APP` | Username for App Server (192.168.1.66) | `john` |
+| `SSH_USER_PYTHON` | Username for Python Server (192.168.1.90) | `jane` |
+| `SSH_USER_SSO` | Username for SSO Server (192.168.1.59) | `admin` |
+| `APP_SERVER` | App Server IP (optional override) | `192.168.1.66` |
+| `PYTHON_SERVER` | Python Server IP (optional override) | `192.168.1.90` |
+| `SSO_SERVER` | SSO Server IP (optional override) | `192.168.1.59` |
+
+## Full Documentation
+
+For complete guide: `cat deploy/NON-ROOT-DEPLOYMENT.md`

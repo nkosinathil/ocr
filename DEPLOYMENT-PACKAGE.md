@@ -6,9 +6,26 @@ Your MXA OCR application now has **complete production-ready deployment scripts*
 
 ## 🚀 Quick Start - Deploy to Production
 
-### Option 1: Automated Multi-Server Deployment (Recommended for Production)
+### Option 1: Non-Root Deployment (Recommended - Most Secure)
 
-From your local machine or CI/CD server:
+**Use this if you have SSH access with your own username (not root) and different usernames per server.**
+
+```bash
+cd deploy/scripts
+
+# Interactive - prompts for usernames
+bash deploy-quick.sh
+
+# OR with environment variables
+SSH_USER_APP=john SSH_USER_PYTHON=jane SSH_USER_SSO=admin bash deploy-nonroot.sh
+```
+
+📖 **Full Guide:** See [NON-ROOT-DEPLOYMENT.md](NON-ROOT-DEPLOYMENT.md)  
+📋 **Quick Reference:** See [NON-ROOT-QUICK-REF.txt](NON-ROOT-QUICK-REF.txt)
+
+### Option 2: Root User Deployment (Traditional)
+
+From your local machine or CI/CD server with root SSH access:
 
 ```bash
 cd deploy/scripts
@@ -23,7 +40,7 @@ bash deploy-master.sh
 bash post-deploy-validate.sh
 ```
 
-### Option 2: Single Server Deployment (Testing/Development)
+### Option 3: Single Server Deployment (Testing/Development)
 
 For testing on a single server:
 
@@ -34,11 +51,14 @@ sudo bash deploy-single-server.sh
 
 ## 📦 What's Included
 
-### 1. Deployment Scripts (9 scripts)
+### 1. Deployment Scripts (12+ scripts)
 
 | Script | Purpose |
 |--------|---------|
-| **deploy-master.sh** | Main orchestration - deploys to all 3 servers |
+| **deploy-nonroot.sh** | 🆕 Non-root deployment with custom SSH users per server |
+| **deploy-quick.sh** | 🆕 Interactive quick deployment (prompts for usernames) |
+| **deploy-config.sh** | 🆕 Configuration template for reusable deployments |
+| **deploy-master.sh** | Main orchestration - deploys to all 3 servers (root user) |
 | **pre-deploy-check.sh** | Pre-flight validation of all prerequisites |
 | **post-deploy-validate.sh** | Post-deployment health checks and validation |
 | **setup-database.sh** | PostgreSQL database setup on App Server |
@@ -50,6 +70,8 @@ sudo bash deploy-single-server.sh
 
 ### 2. Documentation
 
+- **`deploy/NON-ROOT-DEPLOYMENT.md`** 🆕 Complete guide for non-root SSH deployments
+- **`deploy/NON-ROOT-QUICK-REF.txt`** 🆕 Quick reference card for command-line usage
 - **`deploy/QUICK-DEPLOY.md`** - Step-by-step deployment guide
 - **`deploy/scripts/README.md`** - Detailed script documentation
 - **`deploy/README.md`** - Original deployment overview
@@ -91,7 +113,10 @@ Your scripts are configured for this 3-server architecture:
 ### Before Deployment
 
 - [ ] Ensure you have SSH access to all 3 servers
-- [ ] Set up SSH key authentication (recommended)
+- [ ] Set up SSH key authentication (passwordless login)
+  - For non-root: See [NON-ROOT-DEPLOYMENT.md](deploy/NON-ROOT-DEPLOYMENT.md)
+  - For root: Use `ssh-copy-id root@server` or manual key installation
+- [ ] Verify sudo access (for non-root deployments)
 - [ ] Have database passwords ready
 - [ ] Have MinIO credentials ready
 - [ ] Keycloak is running on SSO server
