@@ -233,12 +233,12 @@ tar -xzf mxa-ocr-deploy.tar.gz
 
 # Create release directory with sudo
 RELEASE_DIR="${APP_SERVER_DIR}/releases/\$(date +%Y%m%d-%H%M%S)"
-echo '$SUDO_APP_PASS' | sudo -S mkdir -p ${APP_SERVER_DIR}/releases
-echo '$SUDO_APP_PASS' | sudo -S mkdir -p \${RELEASE_DIR}
-echo '$SUDO_APP_PASS' | sudo -S cp -r ocr/* \${RELEASE_DIR}/
+echo "\$SUDO_APP_PASS" | sudo -S mkdir -p ${APP_SERVER_DIR}/releases
+echo "\$SUDO_APP_PASS" | sudo -S mkdir -p \${RELEASE_DIR}
+echo "\$SUDO_APP_PASS" | sudo -S cp -r ocr/* \${RELEASE_DIR}/
 
 # Update symlink
-echo '$SUDO_APP_PASS' | sudo -S ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
+echo "\$SUDO_APP_PASS" | sudo -S ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
 
 echo "✓ Code deployed to App Server"
 ENDSSH
@@ -275,7 +275,7 @@ if [ -n "$SUDO_APP_PASS" ]; then
 set -e
 cd /var/www/mxa-ocr-app/current/deploy/scripts
 echo "Running database setup..."
-echo '$SUDO_APP_PASS' | sudo -S -u postgres bash setup-database.sh
+echo "$SUDO_APP_PASS" | sudo -S -u postgres bash setup-database.sh
 ENDSSH
 else
     ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
@@ -299,7 +299,7 @@ if [ -n "$SUDO_APP_PASS" ]; then
 set -e
 cd /var/www/mxa-ocr-app/current/deploy/scripts
 echo "Running PHP application setup..."
-echo '$SUDO_APP_PASS' | sudo -S bash setup-php.sh
+echo "$SUDO_APP_PASS" | sudo -S bash setup-php.sh
 ENDSSH
 else
     ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
@@ -340,8 +340,8 @@ cd /tmp/mxa-ocr-deploy
 tar -xzf mxa-ocr-deploy.tar.gz
 
 # Create application directory with sudo
-echo '$SUDO_PYTHON_PASS' | sudo -S mkdir -p ${PYTHON_SERVER_DIR}
-echo '$SUDO_PYTHON_PASS' | sudo -S cp -r ocr/* ${PYTHON_SERVER_DIR}/
+echo "\$SUDO_PYTHON_PASS" | sudo -S mkdir -p ${PYTHON_SERVER_DIR}
+echo "\$SUDO_PYTHON_PASS" | sudo -S cp -r ocr/* ${PYTHON_SERVER_DIR}/
 
 echo "✓ Code deployed to Python Server"
 ENDSSH
@@ -372,7 +372,7 @@ if [ -n "$SUDO_PYTHON_PASS" ]; then
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 echo "Running Python backend setup..."
-echo '$SUDO_PYTHON_PASS' | sudo -S bash setup-python.sh
+echo "$SUDO_PYTHON_PASS" | sudo -S bash setup-python.sh
 ENDSSH
 else
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
@@ -405,7 +405,7 @@ set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 if [ -f setup-minio.sh ]; then
     echo "Running MinIO setup..."
-    echo '$SUDO_PYTHON_PASS' | sudo -S bash setup-minio.sh
+    echo "$SUDO_PYTHON_PASS" | sudo -S bash setup-minio.sh
 else
     echo "MinIO setup script not found. Please configure MinIO manually."
 fi
@@ -436,10 +436,10 @@ print_step "Starting Python services..."
 if [ -n "$SUDO_PYTHON_PASS" ]; then
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
 set -e
-echo '$SUDO_PYTHON_PASS' | sudo -S systemctl start mxa-ocr-api
-echo '$SUDO_PYTHON_PASS' | sudo -S systemctl start mxa-ocr-worker
-echo '$SUDO_PYTHON_PASS' | sudo -S systemctl enable mxa-ocr-api
-echo '$SUDO_PYTHON_PASS' | sudo -S systemctl enable mxa-ocr-worker
+echo "$SUDO_PYTHON_PASS" | sudo -S systemctl start mxa-ocr-api
+echo "$SUDO_PYTHON_PASS" | sudo -S systemctl start mxa-ocr-worker
+echo "$SUDO_PYTHON_PASS" | sudo -S systemctl enable mxa-ocr-api
+echo "$SUDO_PYTHON_PASS" | sudo -S systemctl enable mxa-ocr-worker
 
 echo "✓ Python services started"
 ENDSSH
@@ -462,8 +462,8 @@ print_step "Restarting Apache..."
 if [ -n "$SUDO_APP_PASS" ]; then
     ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
 set -e
-echo '$SUDO_APP_PASS' | sudo -S systemctl reload apache2
-echo '$SUDO_APP_PASS' | sudo -S systemctl status apache2 --no-pager
+echo "$SUDO_APP_PASS" | sudo -S systemctl reload apache2
+echo "$SUDO_APP_PASS" | sudo -S systemctl status apache2 --no-pager
 echo "✓ Apache restarted"
 ENDSSH
 else
@@ -503,8 +503,8 @@ ENDSSH
 print_step "Checking service status..."
 if [ -n "$SUDO_PYTHON_PASS" ]; then
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
-echo '$SUDO_PYTHON_PASS' | sudo -S systemctl status mxa-ocr-api --no-pager | head -n 3
-echo '$SUDO_PYTHON_PASS' | sudo -S systemctl status mxa-ocr-worker --no-pager | head -n 3
+echo "$SUDO_PYTHON_PASS" | sudo -S systemctl status mxa-ocr-api --no-pager | head -n 3
+echo "$SUDO_PYTHON_PASS" | sudo -S systemctl status mxa-ocr-worker --no-pager | head -n 3
 ENDSSH
 else
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
