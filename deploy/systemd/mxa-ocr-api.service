@@ -19,7 +19,7 @@ After=network.target postgresql.service redis.service
 Wants=postgresql.service redis.service
 
 [Service]
-Type=notify
+Type=simple
 User=mxa-ocr
 Group=mxa-ocr
 WorkingDirectory=/opt/apps/mxa-ocr/python-backend
