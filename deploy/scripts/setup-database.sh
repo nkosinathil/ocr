@@ -24,7 +24,7 @@ DB_NAME="mxa_ocr"
 DB_USER="mxa_ocr_user"
 DB_PASSWORD="${DB_PASSWORD:-5ucc3SS!@#s}"  # Can be overridden by env var
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Check if running as postgres user
 if [ "$(whoami)" != "postgres" ]; then
