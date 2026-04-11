@@ -95,7 +95,7 @@ Update these critical values:
 - `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` - Source of truth for MinIO app credentials
 - `REDIS_PASSWORD` - If Redis has authentication
 
-> `deploy/scripts/setup-minio.sh` now auto-generates MinIO credentials if placeholders are detected, writes them to `/opt/apps/mxa-ocr/python-backend/.env`, and reuses them on subsequent runs. Keep PHP `.env` MinIO credentials aligned to these Python `.env` values.
+> `deploy/scripts/setup-minio.sh` now auto-generates MinIO credentials if placeholders are detected, writes them to `/opt/apps/mxa-ocr/python-backend/.env`, and reuses them on subsequent runs. `deploy/scripts/deploy-nonroot.sh` and `deploy/scripts/deploy-master.sh` now include a sync step that copies these values into `/var/www/mxa-ocr-app/current/php-app/.env` automatically.
 
 ### Step 4: Configure Keycloak
 

@@ -254,6 +254,82 @@ ENDSSH
 print_success "MinIO setup complete"
 
 # ============================================================================
+# Step 7.1: Sync MinIO Credentials to PHP .env
+# ============================================================================
+
+print_step "Syncing MinIO credentials to PHP .env on App Server..."
+
+MINIO_ACCESS_KEY_SYNC="$(ssh ${SSH_USER}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+set -e
+ENV_FILE="/opt/apps/mxa-ocr/python-backend/.env"
+sudo awk -F= '
+    /^[[:space:]]*(export[[:space:]]+)?MINIO_ACCESS_KEY[[:space:]]*=/ {
+        value=$0
+        sub(/^[^=]*=/, "", value)
+        sub(/[[:space:]]*#.*/, "", value)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        gsub(/^["'"'"']|["'"'"']$/, "", value)
+        result=value
+    }
+    END { print result }
+' "$ENV_FILE"
+ENDSSH
+)"
+MINIO_SECRET_KEY_SYNC="$(ssh ${SSH_USER}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+set -e
+ENV_FILE="/opt/apps/mxa-ocr/python-backend/.env"
+sudo awk -F= '
+    /^[[:space:]]*(export[[:space:]]+)?MINIO_SECRET_KEY[[:space:]]*=/ {
+        value=$0
+        sub(/^[^=]*=/, "", value)
+        sub(/[[:space:]]*#.*/, "", value)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        gsub(/^["'"'"']|["'"'"']$/, "", value)
+        result=value
+    }
+    END { print result }
+' "$ENV_FILE"
+ENDSSH
+)"
+
+if [ -z "$MINIO_ACCESS_KEY_SYNC" ] || [ -z "$MINIO_SECRET_KEY_SYNC" ]; then
+    print_error "Failed to read MinIO credentials from Python .env"
+    exit 1
+fi
+
+ssh ${SSH_USER}@${APP_SERVER} bash -s -- "$MINIO_ACCESS_KEY_SYNC" "$MINIO_SECRET_KEY_SYNC" << 'ENDSSH'
+set -e
+MINIO_ACCESS_KEY_SYNC="$1"
+MINIO_SECRET_KEY_SYNC="$2"
+ENV_FILE="/var/www/mxa-ocr-app/current/php-app/.env"
+TMP_FILE="$(mktemp)"
+
+sudo test -f "$ENV_FILE"
+sudo awk -v ak="$MINIO_ACCESS_KEY_SYNC" -v sk="$MINIO_SECRET_KEY_SYNC" '
+    BEGIN { updated_access=0; updated_secret=0 }
+    {
+        if ($0 ~ "^[[:space:]]*(export[[:space:]]+)?MINIO_ACCESS_KEY[[:space:]]*=") {
+            print "MINIO_ACCESS_KEY=" ak
+            updated_access=1
+        } else if ($0 ~ "^[[:space:]]*(export[[:space:]]+)?MINIO_SECRET_KEY[[:space:]]*=") {
+            print "MINIO_SECRET_KEY=" sk
+            updated_secret=1
+        } else {
+            print
+        }
+    }
+    END {
+        if (updated_access == 0) print "MINIO_ACCESS_KEY=" ak
+        if (updated_secret == 0) print "MINIO_SECRET_KEY=" sk
+    }
+' "$ENV_FILE" > "$TMP_FILE"
+sudo cp "$TMP_FILE" "$ENV_FILE"
+rm -f "$TMP_FILE"
+ENDSSH
+
+print_success "Synced MinIO credentials to PHP .env"
+
+# ============================================================================
 # Step 8: Start Services
 # ============================================================================
 
