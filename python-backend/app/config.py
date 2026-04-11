@@ -38,16 +38,16 @@ class Settings(BaseSettings):
     db_pool_size: int = 20
     db_max_overflow: int = 10
     
-    # Redis
-    redis_host: str = "192.168.1.90"
+    # Redis (local — bound to 127.0.0.1 on pyserver)
+    redis_host: str = "127.0.0.1"
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: Optional[str] = None
     redis_result_backend_db: int = 1
     
     # Celery
-    celery_broker_url: str = "redis://192.168.1.90:6379/0"
-    celery_result_backend: str = "redis://192.168.1.90:6379/1"
+    celery_broker_url: str = "redis://127.0.0.1:6379/0"
+    celery_result_backend: str = "redis://127.0.0.1:6379/1"
     celery_task_serializer: str = "json"
     celery_result_serializer: str = "json"
     celery_accept_content: str = "json"
