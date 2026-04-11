@@ -714,14 +714,25 @@ print_header "Step 9: Post-deployment Validation"
 
 print_step "Running validation tests..."
 VALIDATION_FAILED=false
+PYTHON_VALIDATION_FAILED=false
 
 # Test Python API
 print_step "Testing Python API health endpoint..."
-if curl -f http://${PYTHON_SERVER}:8100/api/v1/health 2>/dev/null; then
+PYTHON_HEALTH_OK=false
+for _ in {1..6}; do
+    if curl -fsS -o /dev/null http://${PYTHON_SERVER}:8100/api/v1/health 2>/dev/null; then
+        PYTHON_HEALTH_OK=true
+        break
+    fi
+    sleep 5
+done
+
+if [ "$PYTHON_HEALTH_OK" = true ]; then
     print_success "Python API is responding"
 else
     print_error "Python API health check failed"
     VALIDATION_FAILED=true
+    PYTHON_VALIDATION_FAILED=true
 fi
 
 # Test PHP application
@@ -737,8 +748,8 @@ fi
 print_step "Checking service status..."
 if [ -n "$SUDO_PYTHON_PASS" ]; then
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
-echo "$SUDO_PYTHON_PASS" | sudo -S systemctl status mxa-ocr-api --no-pager | head -n 3
-echo "$SUDO_PYTHON_PASS" | sudo -S systemctl status mxa-ocr-worker --no-pager | head -n 3
+echo "$SUDO_PYTHON_PASS" | sudo -S -p '' systemctl status mxa-ocr-api --no-pager | head -n 3
+echo "$SUDO_PYTHON_PASS" | sudo -S -p '' systemctl status mxa-ocr-worker --no-pager | head -n 3
 ENDSSH
 else
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
@@ -749,43 +760,47 @@ fi
 
 if [ -n "$SUDO_PYTHON_PASS" ]; then
     if ! ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
-echo "$SUDO_PYTHON_PASS" | sudo -S systemctl is-active --quiet mxa-ocr-api
+echo "$SUDO_PYTHON_PASS" | sudo -S -p '' systemctl is-active --quiet mxa-ocr-api
 ENDSSH
     then
         print_error "mxa-ocr-api is not active"
         VALIDATION_FAILED=true
+        PYTHON_VALIDATION_FAILED=true
     fi
 
     if ! ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
-echo "$SUDO_PYTHON_PASS" | sudo -S systemctl is-active --quiet mxa-ocr-worker
+echo "$SUDO_PYTHON_PASS" | sudo -S -p '' systemctl is-active --quiet mxa-ocr-worker
 ENDSSH
     then
         print_error "mxa-ocr-worker is not active"
         VALIDATION_FAILED=true
+        PYTHON_VALIDATION_FAILED=true
     fi
 else
     if ! ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} "sudo systemctl is-active --quiet mxa-ocr-api"; then
         print_error "mxa-ocr-api is not active"
         VALIDATION_FAILED=true
+        PYTHON_VALIDATION_FAILED=true
     fi
 
     if ! ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} "sudo systemctl is-active --quiet mxa-ocr-worker"; then
         print_error "mxa-ocr-worker is not active"
         VALIDATION_FAILED=true
+        PYTHON_VALIDATION_FAILED=true
     fi
 fi
 
 if [ "$VALIDATION_FAILED" = true ]; then
     print_error "Post-deployment validation failed"
-    if [ -n "$SUDO_PYTHON_PASS" ]; then
+    if [ "$PYTHON_VALIDATION_FAILED" = true ] && [ -n "$SUDO_PYTHON_PASS" ]; then
         ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
-echo "$SUDO_PYTHON_PASS" | sudo -S journalctl -u mxa-ocr-api -n 40 --no-pager
-echo "$SUDO_PYTHON_PASS" | sudo -S journalctl -u mxa-ocr-worker -n 40 --no-pager
+echo "$SUDO_PYTHON_PASS" | sudo -S -p '' journalctl -u mxa-ocr-api -n 120 --no-pager
+echo "$SUDO_PYTHON_PASS" | sudo -S -p '' journalctl -u mxa-ocr-worker -n 120 --no-pager
 ENDSSH
-    else
+    elif [ "$PYTHON_VALIDATION_FAILED" = true ]; then
         ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} << 'ENDSSH'
-sudo journalctl -u mxa-ocr-api -n 40 --no-pager
-sudo journalctl -u mxa-ocr-worker -n 40 --no-pager
+sudo journalctl -u mxa-ocr-api -n 120 --no-pager
+sudo journalctl -u mxa-ocr-worker -n 120 --no-pager
 ENDSSH
     fi
     exit 1

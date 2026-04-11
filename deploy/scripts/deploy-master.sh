@@ -368,14 +368,25 @@ print_header "Step 9: Post-deployment Validation"
 
 print_step "Running validation tests..."
 VALIDATION_FAILED=false
+PYTHON_VALIDATION_FAILED=false
 
 # Test Python API
 print_step "Testing Python API health endpoint..."
-if curl -f http://${PYTHON_SERVER}:8100/api/v1/health 2>/dev/null; then
+PYTHON_HEALTH_OK=false
+for _ in {1..6}; do
+    if curl -fsS -o /dev/null http://${PYTHON_SERVER}:8100/api/v1/health 2>/dev/null; then
+        PYTHON_HEALTH_OK=true
+        break
+    fi
+    sleep 5
+done
+
+if [ "$PYTHON_HEALTH_OK" = true ]; then
     print_success "Python API is responding"
 else
     print_error "Python API health check failed"
     VALIDATION_FAILED=true
+    PYTHON_VALIDATION_FAILED=true
 fi
 
 # Test PHP application
@@ -397,19 +408,23 @@ ENDSSH
 if ! ssh ${SSH_USER}@${PYTHON_SERVER} "systemctl is-active --quiet mxa-ocr-api"; then
     print_error "mxa-ocr-api is not active"
     VALIDATION_FAILED=true
+    PYTHON_VALIDATION_FAILED=true
 fi
 
 if ! ssh ${SSH_USER}@${PYTHON_SERVER} "systemctl is-active --quiet mxa-ocr-worker"; then
     print_error "mxa-ocr-worker is not active"
     VALIDATION_FAILED=true
+    PYTHON_VALIDATION_FAILED=true
 fi
 
 if [ "$VALIDATION_FAILED" = true ]; then
     print_error "Post-deployment validation failed"
-    ssh ${SSH_USER}@${PYTHON_SERVER} << 'ENDSSH'
-journalctl -u mxa-ocr-api -n 40 --no-pager
-journalctl -u mxa-ocr-worker -n 40 --no-pager
+    if [ "$PYTHON_VALIDATION_FAILED" = true ]; then
+        ssh ${SSH_USER}@${PYTHON_SERVER} << 'ENDSSH'
+journalctl -u mxa-ocr-api -n 120 --no-pager
+journalctl -u mxa-ocr-worker -n 120 --no-pager
 ENDSSH
+    fi
     exit 1
 fi
 
