@@ -24,6 +24,8 @@ APP_DIR="/opt/apps/mxa-ocr"
 PYTHON_BACKEND_DIR="$APP_DIR/python-backend"
 APP_USER="mxa-ocr"
 APP_GROUP="mxa-ocr"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
@@ -97,7 +99,7 @@ chown $APP_USER:$APP_GROUP .env
 echo -e "${YELLOW}Step 7: Installing systemd services...${NC}"
 
 # FastAPI service
-FASTAPI_SERVICE_SRC="$(dirname "$(dirname "$0")")/systemd/mxa-ocr-api.service"
+FASTAPI_SERVICE_SRC="$DEPLOY_DIR/systemd/mxa-ocr-api.service"
 if [ -f "$FASTAPI_SERVICE_SRC" ]; then
     cp "$FASTAPI_SERVICE_SRC" /etc/systemd/system/
     echo -e "${GREEN}FastAPI service installed${NC}"
@@ -106,7 +108,7 @@ else
 fi
 
 # Celery worker service
-CELERY_SERVICE_SRC="$(dirname "$(dirname "$0")")/systemd/mxa-ocr-worker.service"
+CELERY_SERVICE_SRC="$DEPLOY_DIR/systemd/mxa-ocr-worker.service"
 if [ -f "$CELERY_SERVICE_SRC" ]; then
     cp "$CELERY_SERVICE_SRC" /etc/systemd/system/
     echo -e "${GREEN}Celery worker service installed${NC}"
