@@ -28,7 +28,23 @@ This script will:
 - ✓ Start the SSH agent and load your key
 - ✓ Copy your key to all deployment servers
 - ✓ Test all connections
+- ✓ Save agent info to `~/.ssh/mxa-ocr-agent-info` for reuse
 - ✓ Give you clear troubleshooting steps if something fails
+
+**Important:** After running the setup script, you have two options:
+
+**Option 1: Source the agent info (Recommended)**
+```bash
+source ~/.ssh/mxa-ocr-agent-info
+bash deploy-quick.sh
+```
+
+**Option 2: Run both commands together**
+```bash
+source ~/.ssh/mxa-ocr-agent-info && bash deploy-quick.sh
+```
+
+The deployment script will automatically try to load the agent info, but sourcing it ensures it's available in your current shell.
 
 ## Manual Solution
 
@@ -81,6 +97,32 @@ ssh -o BatchMode=yes ssoadmin@192.168.1.59 exit
 If all three commands succeed silently, you're ready to deploy!
 
 ## Troubleshooting
+
+### Issue: Setup script works, but deployment script fails with "SSH agent not running"
+
+This is the **most common issue**! The setup script starts an SSH agent in one shell session, but when you run the deployment script in a new bash invocation, it doesn't have access to that agent.
+
+**Solution 1: Source the agent info (Recommended)**
+```bash
+source ~/.ssh/mxa-ocr-agent-info
+bash deploy-quick.sh
+```
+
+**Solution 2: Run in one command**
+```bash
+source ~/.ssh/mxa-ocr-agent-info && bash deploy-quick.sh
+```
+
+**Solution 3: Make agent persistent (Best for repeated deployments)**
+Add to your `~/.bashrc`:
+```bash
+# Load MXA OCR SSH agent if available
+if [ -f ~/.ssh/mxa-ocr-agent-info ]; then
+    source ~/.ssh/mxa-ocr-agent-info
+fi
+```
+
+Then reload: `source ~/.bashrc`
 
 ### Issue: "SSH agent not running"
 
