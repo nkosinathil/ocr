@@ -124,11 +124,32 @@ if [ -n "$ENV_FILE" ]; then
     echo -e "${YELLOW}Using MinIO settings from: ${ENV_FILE}${NC}"
 fi
 
-# Configure alias
-if ! mc alias set mxaocr "${MINIO_PROTOCOL}://${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}"; then
-    echo -e "${RED}Failed to configure MinIO alias (mxaocr)${NC}"
-    echo -e "${YELLOW}Verify endpoint and credentials. Internal envs usually require MINIO_SECURE=false and a reachable private endpoint.${NC}"
+# Validate required MinIO values
+if [ -z "$MINIO_ENDPOINT" ] || [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET_KEY" ]; then
+    echo -e "${RED}Missing MinIO configuration values${NC}"
+    echo -e "${YELLOW}Required: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY${NC}"
     exit 1
+fi
+
+ALIAS_READY=false
+if mc alias list 2>/dev/null | grep -qE '(^|[[:space:]])mxaocr($|[[:space:]])'; then
+    echo -e "${YELLOW}Found existing MinIO alias: mxaocr${NC}"
+    if mc admin info mxaocr &>/dev/null; then
+        echo -e "${GREEN}Existing MinIO alias is reachable, reusing current configuration${NC}"
+        ALIAS_READY=true
+    else
+        echo -e "${YELLOW}Existing MinIO alias is not reachable, will reconfigure${NC}"
+        mc alias rm mxaocr >/dev/null 2>&1 || true
+    fi
+fi
+
+# Configure alias when not already valid
+if [ "$ALIAS_READY" != "true" ]; then
+    if ! mc alias set mxaocr "${MINIO_PROTOCOL}://${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}"; then
+        echo -e "${RED}Failed to configure MinIO alias (mxaocr)${NC}"
+        echo -e "${YELLOW}Verify endpoint and credentials. Internal envs usually require MINIO_SECURE=false and a reachable private endpoint.${NC}"
+        exit 1
+    fi
 fi
 
 # Test connection
