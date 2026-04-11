@@ -63,7 +63,7 @@ EOF
 
 # Step 4: Run schema
 echo -e "${YELLOW}Step 4: Running database schema...${NC}"
-psql -U $DB_USER -d $DB_NAME -f "$REPO_ROOT/database/schema.sql"
+PGPASSWORD="$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -f "$REPO_ROOT/database/schema.sql"
 
 echo ""
 echo -e "${GREEN}==================================================================${NC}"
