@@ -19,7 +19,7 @@ After=network.target redis.service postgresql.service
 Wants=redis.service postgresql.service
 
 [Service]
-Type=forking
+Type=exec
 User=mxa-ocr
 Group=mxa-ocr
 WorkingDirectory=/opt/apps/mxa-ocr/python-backend
@@ -28,7 +28,7 @@ WorkingDirectory=/opt/apps/mxa-ocr/python-backend
 Environment="PATH=/opt/apps/mxa-ocr/python-backend/venv/bin"
 EnvironmentFile=/opt/apps/mxa-ocr/python-backend/.env
 
-# Start command
+# Start command (no --detach: systemd owns the process directly)
 ExecStart=/opt/apps/mxa-ocr/python-backend/venv/bin/celery \
     -A app.tasks.celery_app worker \
     --loglevel=info \
@@ -36,32 +36,19 @@ ExecStart=/opt/apps/mxa-ocr/python-backend/venv/bin/celery \
     --max-tasks-per-child=1000 \
     --time-limit=1800 \
     --soft-time-limit=1500 \
-    -Q mxa_ocr \
-    --pidfile=/var/run/mxa-ocr/celery-worker.pid \
-    --logfile=/var/log/mxa-ocr/celery-worker.log \
-    --detach
-
-# Stop command
-ExecStop=/bin/kill -TERM $MAINPID
+    -Q mxa_ocr
 
 # Restart policy
 Restart=always
 RestartSec=10
 StartLimitInterval=0
 
-# PID file
-PIDFile=/var/run/mxa-ocr/celery-worker.pid
-
-# Runtime directory
-RuntimeDirectory=mxa-ocr
-RuntimeDirectoryMode=0755
-
 # Security
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/apps/mxa-ocr /var/log/mxa-ocr /tmp/mxa-ocr /var/run/mxa-ocr
+ReadWritePaths=/opt/apps/mxa-ocr /var/log/mxa-ocr /tmp/mxa-ocr
 
 # Resource limits
 LimitNOFILE=65536
