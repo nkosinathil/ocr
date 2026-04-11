@@ -175,8 +175,24 @@ check_ssh_connection ${PYTHON_SERVER} ${SSH_USER_PYTHON} || exit 1
 print_success "All SSH connections verified"
 
 print_step "Checking sudo access..."
-check_sudo_access ${APP_SERVER} ${SSH_USER_APP} || print_info "Continuing anyway..."
-check_sudo_access ${PYTHON_SERVER} ${SSH_USER_PYTHON} || print_info "Continuing anyway..."
+SUDO_APP_PASS=""
+SUDO_PYTHON_PASS=""
+
+if ! check_sudo_access ${APP_SERVER} ${SSH_USER_APP}; then
+    print_info "Continuing anyway..."
+    echo ""
+    print_step "Password required for sudo on App Server"
+    read -s -p "Enter sudo password for ${SSH_USER_APP}@${APP_SERVER}: " SUDO_APP_PASS
+    echo ""
+fi
+
+if ! check_sudo_access ${PYTHON_SERVER} ${SSH_USER_PYTHON}; then
+    print_info "Continuing anyway..."
+    echo ""
+    print_step "Password required for sudo on Python Server"
+    read -s -p "Enter sudo password for ${SSH_USER_PYTHON}@${PYTHON_SERVER}: " SUDO_PYTHON_PASS
+    echo ""
+fi
 
 # ============================================================================
 # Step 2: Deploy to App Server (192.168.1.66)
@@ -208,7 +224,27 @@ print_success "Upload complete"
 
 # Extract and deploy
 print_step "Extracting and deploying on App Server..."
-ssh -t ${SSH_USER_APP}@${APP_SERVER} << ENDSSH
+if [ -n "$SUDO_APP_PASS" ]; then
+    # Use sudo -S to read password from stdin
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << ENDSSH
+set -e
+cd /tmp/mxa-ocr-deploy
+tar -xzf mxa-ocr-deploy.tar.gz
+
+# Create release directory with sudo
+RELEASE_DIR="${APP_SERVER_DIR}/releases/\$(date +%Y%m%d-%H%M%S)"
+echo '$SUDO_APP_PASS' | sudo -S mkdir -p ${APP_SERVER_DIR}/releases
+echo '$SUDO_APP_PASS' | sudo -S mkdir -p \${RELEASE_DIR}
+echo '$SUDO_APP_PASS' | sudo -S cp -r ocr/* \${RELEASE_DIR}/
+
+# Update symlink
+echo '$SUDO_APP_PASS' | sudo -S ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
+
+echo "✓ Code deployed to App Server"
+ENDSSH
+else
+    # Passwordless sudo
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << ENDSSH
 set -e
 cd /tmp/mxa-ocr-deploy
 tar -xzf mxa-ocr-deploy.tar.gz
@@ -224,6 +260,7 @@ sudo ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
 
 echo "✓ Code deployed to App Server"
 ENDSSH
+fi
 
 print_success "App Server code deployed"
 
@@ -233,12 +270,21 @@ print_success "App Server code deployed"
 
 print_header "Step 3: Setting up Database on App Server"
 
-ssh -t ${SSH_USER_APP}@${APP_SERVER} << 'ENDSSH'
+if [ -n "$SUDO_APP_PASS" ]; then
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
+set -e
+cd /var/www/mxa-ocr-app/current/deploy/scripts
+echo "Running database setup..."
+echo '$SUDO_APP_PASS' | sudo -S -u postgres bash setup-database.sh
+ENDSSH
+else
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
 set -e
 cd /var/www/mxa-ocr-app/current/deploy/scripts
 echo "Running database setup..."
 sudo -u postgres bash setup-database.sh
 ENDSSH
+fi
 
 print_success "Database setup complete"
 
@@ -248,12 +294,21 @@ print_success "Database setup complete"
 
 print_header "Step 4: Deploying PHP Application"
 
-ssh -t ${SSH_USER_APP}@${APP_SERVER} << 'ENDSSH'
+if [ -n "$SUDO_APP_PASS" ]; then
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
+set -e
+cd /var/www/mxa-ocr-app/current/deploy/scripts
+echo "Running PHP application setup..."
+echo '$SUDO_APP_PASS' | sudo -S bash setup-php.sh
+ENDSSH
+else
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
 set -e
 cd /var/www/mxa-ocr-app/current/deploy/scripts
 echo "Running PHP application setup..."
 sudo bash setup-php.sh
 ENDSSH
+fi
 
 print_success "PHP application deployed"
 
@@ -278,7 +333,20 @@ print_success "Upload complete"
 
 # Extract and deploy
 print_step "Extracting and deploying on Python Server..."
-ssh -t ${SSH_USER_PYTHON}@${PYTHON_SERVER} << ENDSSH
+if [ -n "$SUDO_PYTHON_PASS" ]; then
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
+set -e
+cd /tmp/mxa-ocr-deploy
+tar -xzf mxa-ocr-deploy.tar.gz
+
+# Create application directory with sudo
+echo '$SUDO_PYTHON_PASS' | sudo -S mkdir -p ${PYTHON_SERVER_DIR}
+echo '$SUDO_PYTHON_PASS' | sudo -S cp -r ocr/* ${PYTHON_SERVER_DIR}/
+
+echo "✓ Code deployed to Python Server"
+ENDSSH
+else
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
 set -e
 cd /tmp/mxa-ocr-deploy
 tar -xzf mxa-ocr-deploy.tar.gz
@@ -289,6 +357,7 @@ sudo cp -r ocr/* ${PYTHON_SERVER_DIR}/
 
 echo "✓ Code deployed to Python Server"
 ENDSSH
+fi
 
 print_success "Python Server code deployed"
 
@@ -298,12 +367,21 @@ print_success "Python Server code deployed"
 
 print_header "Step 6: Setting up Python Backend"
 
-ssh -t ${SSH_USER_PYTHON}@${PYTHON_SERVER} << 'ENDSSH'
+if [ -n "$SUDO_PYTHON_PASS" ]; then
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+set -e
+cd /opt/apps/mxa-ocr/deploy/scripts
+echo "Running Python backend setup..."
+echo '$SUDO_PYTHON_PASS' | sudo -S bash setup-python.sh
+ENDSSH
+else
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 echo "Running Python backend setup..."
 sudo bash setup-python.sh
 ENDSSH
+fi
 
 print_success "Python backend deployed"
 
@@ -321,7 +399,19 @@ read -p "Press ENTER when .env has been configured..."
 
 print_header "Step 7: Setting up MinIO Storage"
 
-ssh -t ${SSH_USER_PYTHON}@${PYTHON_SERVER} << 'ENDSSH'
+if [ -n "$SUDO_PYTHON_PASS" ]; then
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+set -e
+cd /opt/apps/mxa-ocr/deploy/scripts
+if [ -f setup-minio.sh ]; then
+    echo "Running MinIO setup..."
+    echo '$SUDO_PYTHON_PASS' | sudo -S bash setup-minio.sh
+else
+    echo "MinIO setup script not found. Please configure MinIO manually."
+fi
+ENDSSH
+else
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 if [ -f setup-minio.sh ]; then
@@ -331,6 +421,7 @@ else
     echo "MinIO setup script not found. Please configure MinIO manually."
 fi
 ENDSSH
+fi
 
 print_success "MinIO setup complete"
 
@@ -342,7 +433,18 @@ print_header "Step 8: Starting Services"
 
 # Start Python services
 print_step "Starting Python services..."
-ssh -t ${SSH_USER_PYTHON}@${PYTHON_SERVER} << 'ENDSSH'
+if [ -n "$SUDO_PYTHON_PASS" ]; then
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+set -e
+echo '$SUDO_PYTHON_PASS' | sudo -S systemctl start mxa-ocr-api
+echo '$SUDO_PYTHON_PASS' | sudo -S systemctl start mxa-ocr-worker
+echo '$SUDO_PYTHON_PASS' | sudo -S systemctl enable mxa-ocr-api
+echo '$SUDO_PYTHON_PASS' | sudo -S systemctl enable mxa-ocr-worker
+
+echo "✓ Python services started"
+ENDSSH
+else
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
 set -e
 sudo systemctl start mxa-ocr-api
 sudo systemctl start mxa-ocr-worker
@@ -351,17 +453,27 @@ sudo systemctl enable mxa-ocr-worker
 
 echo "✓ Python services started"
 ENDSSH
+fi
 
 print_success "Python services started"
 
 # Restart Apache
 print_step "Restarting Apache..."
-ssh -t ${SSH_USER_APP}@${APP_SERVER} << 'ENDSSH'
+if [ -n "$SUDO_APP_PASS" ]; then
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
+set -e
+echo '$SUDO_APP_PASS' | sudo -S systemctl reload apache2
+echo '$SUDO_APP_PASS' | sudo -S systemctl status apache2 --no-pager
+echo "✓ Apache restarted"
+ENDSSH
+else
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
 set -e
 sudo systemctl reload apache2
 sudo systemctl status apache2 --no-pager
 echo "✓ Apache restarted"
 ENDSSH
+fi
 
 print_success "Apache restarted"
 
@@ -389,10 +501,17 @@ ENDSSH
 
 # Check service status
 print_step "Checking service status..."
-ssh -t ${SSH_USER_PYTHON}@${PYTHON_SERVER} << 'ENDSSH'
+if [ -n "$SUDO_PYTHON_PASS" ]; then
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+echo '$SUDO_PYTHON_PASS' | sudo -S systemctl status mxa-ocr-api --no-pager | head -n 3
+echo '$SUDO_PYTHON_PASS' | sudo -S systemctl status mxa-ocr-worker --no-pager | head -n 3
+ENDSSH
+else
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
 sudo systemctl status mxa-ocr-api --no-pager | head -n 3
 sudo systemctl status mxa-ocr-worker --no-pager | head -n 3
 ENDSSH
+fi
 
 # ============================================================================
 # Deployment Complete
