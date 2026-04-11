@@ -19,7 +19,7 @@ celery_app = Celery(
 celery_app.conf.update(
     task_serializer=settings.celery_task_serializer,
     result_serializer=settings.celery_result_serializer,
-    accept_content=settings.celery_accept_content,
+    accept_content=settings.celery_accept_content_list,
     timezone=settings.celery_timezone,
     enable_utc=settings.celery_enable_utc,
     task_track_started=settings.celery_task_track_started,

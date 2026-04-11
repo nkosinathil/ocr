@@ -6,9 +6,7 @@ This is specific to the MXA OCR product only.
 """
 
 import json
-import os
-from typing import Any, List, Optional
-from pydantic import field_validator
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -45,7 +43,7 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://192.168.1.90:6379/1"
     celery_task_serializer: str = "json"
     celery_result_serializer: str = "json"
-    celery_accept_content: List[str] = ["json"]
+    celery_accept_content: str = "json"
     celery_timezone: str = "Africa/Johannesburg"
     celery_enable_utc: bool = True
     celery_task_track_started: bool = True
@@ -87,7 +85,7 @@ class Settings(BaseSettings):
     
     # Security
     api_key: Optional[str] = None
-    cors_origins: List[str] = ["https://ocr.gismartanalytics.com"]
+    cors_origins: str = "https://ocr.gismartanalytics.com"
     cors_allow_credentials: bool = True
     
     # Performance
@@ -99,20 +97,28 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
 
-    @field_validator('celery_accept_content', 'cors_origins', mode='before')
-    @classmethod
-    def _parse_list_field(cls, v: Any) -> Any:
-        """Accept both JSON array format and comma-separated plain strings."""
-        if isinstance(v, str):
-            try:
-                parsed = json.loads(v)
-                if isinstance(parsed, list):
-                    return parsed
-            except (json.JSONDecodeError, ValueError):
-                pass
-            return [item.strip() for item in v.split(',') if item.strip()]
-        return v
-        
+    def _parse_str_as_list(self, value: str) -> List[str]:
+        """Parse a string value as a list, accepting JSON arrays or comma-separated values."""
+        if not value:
+            return []
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return parsed
+        except (json.JSONDecodeError, ValueError):
+            pass
+        return [item.strip() for item in value.split(',') if item.strip()]
+
+    @property
+    def celery_accept_content_list(self) -> List[str]:
+        """Get celery_accept_content as a list."""
+        return self._parse_str_as_list(self.celery_accept_content)
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Get cors_origins as a list."""
+        return self._parse_str_as_list(self.cors_origins)
+
     @property
     def database_url(self) -> str:
         """Get PostgreSQL database URL."""
