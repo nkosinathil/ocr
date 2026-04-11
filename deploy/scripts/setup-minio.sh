@@ -74,8 +74,8 @@ if [ -n "$ENV_FILE" ]; then
 fi
 
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-${ENV_MINIO_ENDPOINT:-192.168.1.90:9000}}"
-MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-${ENV_MINIO_ACCESS_KEY:-minio-access-key}}"
-MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-${ENV_MINIO_SECRET_KEY:-minio-secret-key}}"
+MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-${ENV_MINIO_ACCESS_KEY:-}}"
+MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-${ENV_MINIO_SECRET_KEY:-}}"
 BUCKET_INPUT="${MINIO_BUCKET_INPUT:-${ENV_MINIO_BUCKET_INPUT:-mxa-ocr-input}}"
 BUCKET_OUTPUT="${MINIO_BUCKET_OUTPUT:-${ENV_MINIO_BUCKET_OUTPUT:-mxa-ocr-output}}"
 MINIO_SECURE="${MINIO_SECURE:-${ENV_MINIO_SECURE:-false}}"
@@ -130,6 +130,22 @@ if [ -z "$MINIO_ENDPOINT" ] || [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET
     echo -e "${YELLOW}Required: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY${NC}"
     exit 1
 fi
+
+case "${MINIO_ACCESS_KEY}" in
+    minio-access-key|changeme|your-access-key)
+        echo -e "${RED}Invalid MINIO_ACCESS_KEY value in configuration${NC}"
+        echo -e "${YELLOW}Set a real MinIO access key before continuing deployment${NC}"
+        exit 1
+        ;;
+esac
+
+case "${MINIO_SECRET_KEY}" in
+    minio-secret-key|changeme|your-secret-key)
+        echo -e "${RED}Invalid MINIO_SECRET_KEY value in configuration${NC}"
+        echo -e "${YELLOW}Set a real MinIO secret key before continuing deployment${NC}"
+        exit 1
+        ;;
+esac
 
 MINIO_ALIAS_VALID=false
 if mc alias list 2>/dev/null | grep -qE '(^|[[:space:]])mxaocr($|[[:space:]])'; then
