@@ -407,6 +407,42 @@ if [ -n "$SUDO_PYTHON_PASS" ]; then
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
+ENV_FILE="/opt/apps/mxa-ocr/python-backend/.env"
+if [ ! -f "\$ENV_FILE" ]; then
+    echo "Required env file not found: \$ENV_FILE"
+    echo "Configure Python backend env values before MinIO setup."
+    exit 1
+fi
+
+get_env_value() {
+    local key="\$1"
+    local raw_line
+    local value
+
+    raw_line="\$(grep -E "^[[:space:]]*(export[[:space:]]+)?\${key}[[:space:]]*=" "\$ENV_FILE" | tail -n1 || true)"
+    if [ -z "\$raw_line" ]; then
+        echo ""
+        return
+    fi
+
+    value="\${raw_line#*=}"
+    value="\${value%%#*}"
+    value="\$(printf '%s' "\$value" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    value="\${value%\"}"
+    value="\${value#\"}"
+    value="\${value%\'}"
+    value="\${value#\'}"
+    echo "\$value"
+}
+
+MINIO_ACCESS_KEY="\$(get_env_value MINIO_ACCESS_KEY)"
+MINIO_SECRET_KEY="\$(get_env_value MINIO_SECRET_KEY)"
+if [ -z "\$MINIO_ACCESS_KEY" ] || [ -z "\$MINIO_SECRET_KEY" ]; then
+    echo "Missing required MinIO keys in \$ENV_FILE"
+    echo "Required: MINIO_ACCESS_KEY and MINIO_SECRET_KEY"
+    exit 1
+fi
+
 if [ -f setup-minio.sh ]; then
     echo "Running MinIO setup..."
     echo "$SUDO_PYTHON_PASS" | sudo -S bash setup-minio.sh
@@ -418,6 +454,42 @@ else
     ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
+ENV_FILE="/opt/apps/mxa-ocr/python-backend/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "Required env file not found: $ENV_FILE"
+    echo "Configure Python backend env values before MinIO setup."
+    exit 1
+fi
+
+get_env_value() {
+    local key="$1"
+    local raw_line
+    local value
+
+    raw_line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$ENV_FILE" | tail -n1 || true)"
+    if [ -z "$raw_line" ]; then
+        echo ""
+        return
+    fi
+
+    value="${raw_line#*=}"
+    value="${value%%#*}"
+    value="$(printf '%s' "$value" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    value="${value%\"}"
+    value="${value#\"}"
+    value="${value%\'}"
+    value="${value#\'}"
+    echo "$value"
+}
+
+MINIO_ACCESS_KEY="$(get_env_value MINIO_ACCESS_KEY)"
+MINIO_SECRET_KEY="$(get_env_value MINIO_SECRET_KEY)"
+if [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET_KEY" ]; then
+    echo "Missing required MinIO keys in $ENV_FILE"
+    echo "Required: MINIO_ACCESS_KEY and MINIO_SECRET_KEY"
+    exit 1
+fi
+
 if [ -f setup-minio.sh ]; then
     echo "Running MinIO setup..."
     sudo bash setup-minio.sh
