@@ -24,9 +24,9 @@ User=mxa-ocr
 Group=mxa-ocr
 WorkingDirectory=/opt/apps/mxa-ocr/python-backend
 
-# Environment
-Environment="PATH=/opt/apps/mxa-ocr/python-backend/venv/bin"
-EnvironmentFile=/opt/apps/mxa-ocr/python-backend/.env
+# Environment — do NOT use EnvironmentFile with .env (comments/quotes break systemd parsing)
+# pydantic-settings loads .env directly from WorkingDirectory
+Environment="PATH=/opt/apps/mxa-ocr/python-backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
 
 # Start command
 ExecStart=/opt/apps/mxa-ocr/python-backend/venv/bin/uvicorn \
