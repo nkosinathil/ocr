@@ -408,9 +408,14 @@ if [ -n "$SUDO_PYTHON_PASS" ]; then
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 ENV_FILE="/opt/apps/mxa-ocr/python-backend/.env"
-if [ ! -f "\$ENV_FILE" ]; then
+if ! echo "$SUDO_PYTHON_PASS" | sudo -S test -f "\$ENV_FILE"; then
     echo "Required env file not found: \$ENV_FILE"
     echo "Configure Python backend env values before MinIO setup."
+    exit 1
+fi
+if ! echo "$SUDO_PYTHON_PASS" | sudo -S test -r "\$ENV_FILE"; then
+    echo "Cannot read env file: \$ENV_FILE"
+    echo "Check file ownership/permissions on Python Server."
     exit 1
 fi
 
@@ -419,7 +424,7 @@ get_env_value() {
     local raw_line
     local value
 
-    raw_line="\$(grep -E "^[[:space:]]*(export[[:space:]]+)?\${key}[[:space:]]*=" "\$ENV_FILE" | tail -n1 || true)"
+    raw_line="\$(echo "$SUDO_PYTHON_PASS" | sudo -S grep -E "^[[:space:]]*(export[[:space:]]+)?\${key}[[:space:]]*=" "\$ENV_FILE" 2>/dev/null | tail -n1 || true)"
     if [ -z "\$raw_line" ]; then
         echo ""
         return
@@ -455,9 +460,14 @@ else
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 ENV_FILE="/opt/apps/mxa-ocr/python-backend/.env"
-if [ ! -f "$ENV_FILE" ]; then
+if ! sudo test -f "$ENV_FILE"; then
     echo "Required env file not found: $ENV_FILE"
     echo "Configure Python backend env values before MinIO setup."
+    exit 1
+fi
+if ! sudo test -r "$ENV_FILE"; then
+    echo "Cannot read env file: $ENV_FILE"
+    echo "Check file ownership/permissions on Python Server."
     exit 1
 fi
 
@@ -466,7 +476,7 @@ get_env_value() {
     local raw_line
     local value
 
-    raw_line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$ENV_FILE" | tail -n1 || true)"
+    raw_line="$(sudo grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$ENV_FILE" 2>/dev/null | tail -n1 || true)"
     if [ -z "$raw_line" ]; then
         echo ""
         return
