@@ -48,9 +48,6 @@ StartLimitInterval=0
 # Security
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/apps/mxa-ocr /var/log/mxa-ocr /tmp/mxa-ocr
 
 # Resource limits
 LimitNOFILE=65536

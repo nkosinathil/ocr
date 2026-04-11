@@ -367,6 +367,7 @@ print_success "Apache restarted"
 print_header "Step 9: Post-deployment Validation"
 
 print_step "Running validation tests..."
+VALIDATION_FAILED=false
 
 # Test Python API
 print_step "Testing Python API health endpoint..."
@@ -374,13 +375,17 @@ if curl -f http://${PYTHON_SERVER}:8100/api/v1/health 2>/dev/null; then
     print_success "Python API is responding"
 else
     print_error "Python API health check failed"
+    VALIDATION_FAILED=true
 fi
 
 # Test PHP application
 print_step "Testing PHP application..."
-ssh ${SSH_USER}@${APP_SERVER} << 'ENDSSH'
-curl -f http://localhost/ 2>/dev/null && echo "✓ PHP application is responding"
-ENDSSH
+if ssh ${SSH_USER}@${APP_SERVER} "curl -f http://localhost/ >/dev/null 2>&1"; then
+    print_success "PHP application is responding"
+else
+    print_error "PHP application check failed"
+    VALIDATION_FAILED=true
+fi
 
 # Check service status
 print_step "Checking service status..."
@@ -388,6 +393,25 @@ ssh ${SSH_USER}@${PYTHON_SERVER} << 'ENDSSH'
 systemctl status mxa-ocr-api --no-pager | head -n 3
 systemctl status mxa-ocr-worker --no-pager | head -n 3
 ENDSSH
+
+if ! ssh ${SSH_USER}@${PYTHON_SERVER} "systemctl is-active --quiet mxa-ocr-api"; then
+    print_error "mxa-ocr-api is not active"
+    VALIDATION_FAILED=true
+fi
+
+if ! ssh ${SSH_USER}@${PYTHON_SERVER} "systemctl is-active --quiet mxa-ocr-worker"; then
+    print_error "mxa-ocr-worker is not active"
+    VALIDATION_FAILED=true
+fi
+
+if [ "$VALIDATION_FAILED" = true ]; then
+    print_error "Post-deployment validation failed"
+    ssh ${SSH_USER}@${PYTHON_SERVER} << 'ENDSSH'
+journalctl -u mxa-ocr-api -n 40 --no-pager
+journalctl -u mxa-ocr-worker -n 40 --no-pager
+ENDSSH
+    exit 1
+fi
 
 # ============================================================================
 # Deployment Complete
