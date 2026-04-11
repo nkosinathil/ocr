@@ -17,9 +17,19 @@ NC='\033[0m'
 read_env_value() {
     local env_file="$1"
     local key="$2"
+    local raw_line
     local value
 
-    value="$(grep -E "^${key}=" "$env_file" | tail -n1 | cut -d'=' -f2- || true)"
+    raw_line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$env_file" | tail -n1 || true)"
+    if [ -z "$raw_line" ]; then
+        echo ""
+        return
+    fi
+
+    value="${raw_line#*=}"
+    value="${value%%#*}"
+    value="$(printf '%s' "$value" | tr -d '\r')"
+    value="$(printf '%s' "$value" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
     value="${value%\"}"
     value="${value#\"}"
     value="${value%\'}"
@@ -69,6 +79,13 @@ MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-${ENV_MINIO_SECRET_KEY:-minio-secret-key}}
 BUCKET_INPUT="${MINIO_BUCKET_INPUT:-${ENV_MINIO_BUCKET_INPUT:-mxa-ocr-input}}"
 BUCKET_OUTPUT="${MINIO_BUCKET_OUTPUT:-${ENV_MINIO_BUCKET_OUTPUT:-mxa-ocr-output}}"
 MINIO_SECURE="${MINIO_SECURE:-${ENV_MINIO_SECURE:-false}}"
+
+MINIO_ENDPOINT="$(printf '%s' "$MINIO_ENDPOINT" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+MINIO_ACCESS_KEY="$(printf '%s' "$MINIO_ACCESS_KEY" | tr -d '\r')"
+MINIO_SECRET_KEY="$(printf '%s' "$MINIO_SECRET_KEY" | tr -d '\r')"
+BUCKET_INPUT="$(printf '%s' "$BUCKET_INPUT" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+BUCKET_OUTPUT="$(printf '%s' "$BUCKET_OUTPUT" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+MINIO_SECURE="$(printf '%s' "$MINIO_SECURE" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
 
 MINIO_PROTOCOL="http"
 case "${MINIO_SECURE,,}" in
