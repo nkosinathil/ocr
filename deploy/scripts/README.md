@@ -4,9 +4,31 @@ This directory contains automated deployment scripts for MXA OCR.
 
 ## Quick Start
 
-### Option 1: Full Production Deployment (3 Servers)
+### Option 1: Non-Root Deployment (🆕 Recommended - Most Secure)
 
-For deploying to the production infrastructure (App Server, Python Server, SSO Server):
+**For users with SSH access using their own username (not root) and different usernames per server:**
+
+```bash
+# Method 1: Interactive (easiest - prompts for usernames)
+bash deploy-quick.sh
+
+# Method 2: Environment variables (for scripting)
+SSH_USER_APP=john SSH_USER_PYTHON=jane SSH_USER_SSO=admin bash deploy-nonroot.sh
+
+# Method 3: Configuration file (reusable)
+cp deploy-config-example.sh my-config.sh
+nano my-config.sh  # Edit with your usernames
+source my-config.sh && bash deploy-nonroot.sh
+```
+
+📖 **Complete Guide:** [../NON-ROOT-DEPLOYMENT.md](../NON-ROOT-DEPLOYMENT.md)  
+📋 **Quick Reference:** [../NON-ROOT-QUICK-REF.txt](../NON-ROOT-QUICK-REF.txt)
+
+### Option 2: Root Deployment (Traditional)
+
+### Option 2: Root Deployment (Traditional)
+
+For deploying to the production infrastructure with root SSH access (App Server, Python Server, SSO Server):
 
 ```bash
 # 1. Run pre-deployment checks
@@ -19,7 +41,7 @@ bash deploy-master.sh
 bash post-deploy-validate.sh
 ```
 
-### Option 2: Single Server Deployment (Testing/Development)
+### Option 3: Single Server Deployment (Testing/Development)
 
 For deploying everything on one server (local testing):
 
@@ -33,7 +55,11 @@ sudo bash deploy-single-server.sh
 
 | Script | Description | When to Use |
 |--------|-------------|-------------|
-| **deploy-master.sh** | Full multi-server deployment | Production deployment to 3 servers |
+| **deploy-nonroot.sh** 🆕 | Non-root user deployment with sudo | SSH access with custom usernames |
+| **deploy-quick.sh** 🆕 | Interactive deployment (prompts for usernames) | Quick deployment without config files |
+| **deploy-config.sh** 🆕 | Configuration template | Create reusable deployment configs |
+| **deploy-config-example.sh** 🆕 | Example configuration | Template for custom configs |
+| **deploy-master.sh** | Full multi-server deployment (root) | Production deployment with root access |
 | **deploy-single-server.sh** | Single server deployment | Local testing/development |
 | **pre-deploy-check.sh** | Pre-deployment validation | Before any deployment |
 | **post-deploy-validate.sh** | Post-deployment validation | After deployment to verify |
