@@ -37,6 +37,67 @@ read_env_value() {
     echo "$value"
 }
 
+is_placeholder_value() {
+    local value="${1,,}"
+    case "$value" in
+        ""|minio-access-key|minio-secret-key|changeme|your-access-key|your-secret-key)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+generate_random_alnum() {
+    local length="$1"
+    tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$length"
+}
+
+mask_secret_value() {
+    local value="$1"
+    local len="${#value}"
+    if [ "$len" -le 10 ]; then
+        printf '********'
+    else
+        printf '%s********%s' "${value:0:4}" "${value: -4}"
+    fi
+}
+
+ensure_env_file_exists() {
+    local env_file="$1"
+    mkdir -p "$(dirname "$env_file")"
+    touch "$env_file"
+}
+
+upsert_env_value() {
+    local env_file="$1"
+    local key="$2"
+    local value="$3"
+    local tmp_file
+
+    tmp_file="$(mktemp)"
+    awk -v key="$key" -v value="$value" '
+        BEGIN { updated = 0 }
+        {
+            if ($0 ~ "^[[:space:]]*(export[[:space:]]+)?" key "[[:space:]]*=") {
+                print key "=" value
+                updated = 1
+            } else {
+                print
+            }
+        }
+        END {
+            if (updated == 0) {
+                print key "=" value
+            }
+        }
+    ' "$env_file" > "$tmp_file"
+
+    cat "$tmp_file" > "$env_file"
+    rm -f "$tmp_file"
+}
+
 echo -e "${GREEN}==================================================================${NC}"
 echo -e "${GREEN}MXA OCR - MinIO Setup${NC}"
 echo -e "${GREEN}==================================================================${NC}"
@@ -63,6 +124,10 @@ ENV_MINIO_SECRET_KEY=""
 ENV_MINIO_BUCKET_INPUT=""
 ENV_MINIO_BUCKET_OUTPUT=""
 ENV_MINIO_SECURE=""
+ENV_MINIO_ROOT_USER=""
+ENV_MINIO_ROOT_PASSWORD=""
+ENV_MINIO_ADMIN_ACCESS_KEY=""
+ENV_MINIO_ADMIN_SECRET_KEY=""
 
 if [ -n "$ENV_FILE" ]; then
     ENV_MINIO_ENDPOINT="$(read_env_value "$ENV_FILE" "MINIO_ENDPOINT")"
@@ -71,6 +136,10 @@ if [ -n "$ENV_FILE" ]; then
     ENV_MINIO_BUCKET_INPUT="$(read_env_value "$ENV_FILE" "MINIO_BUCKET_INPUT")"
     ENV_MINIO_BUCKET_OUTPUT="$(read_env_value "$ENV_FILE" "MINIO_BUCKET_OUTPUT")"
     ENV_MINIO_SECURE="$(read_env_value "$ENV_FILE" "MINIO_SECURE")"
+    ENV_MINIO_ROOT_USER="$(read_env_value "$ENV_FILE" "MINIO_ROOT_USER")"
+    ENV_MINIO_ROOT_PASSWORD="$(read_env_value "$ENV_FILE" "MINIO_ROOT_PASSWORD")"
+    ENV_MINIO_ADMIN_ACCESS_KEY="$(read_env_value "$ENV_FILE" "MINIO_ADMIN_ACCESS_KEY")"
+    ENV_MINIO_ADMIN_SECRET_KEY="$(read_env_value "$ENV_FILE" "MINIO_ADMIN_SECRET_KEY")"
 fi
 
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-${ENV_MINIO_ENDPOINT:-192.168.1.90:9000}}"
@@ -91,6 +160,12 @@ MINIO_PROTOCOL="http"
 case "${MINIO_SECURE,,}" in
     true|1|yes) MINIO_PROTOCOL="https" ;;
 esac
+
+MINIO_SHOW_SECRET="${MINIO_SHOW_SECRET:-false}"
+MINIO_ADMIN_ACCESS_KEY="${MINIO_ADMIN_ACCESS_KEY:-${ENV_MINIO_ADMIN_ACCESS_KEY:-${ENV_MINIO_ROOT_USER:-}}}"
+MINIO_ADMIN_SECRET_KEY="${MINIO_ADMIN_SECRET_KEY:-${ENV_MINIO_ADMIN_SECRET_KEY:-${ENV_MINIO_ROOT_PASSWORD:-}}}"
+MINIO_ADMIN_ACCESS_KEY="$(printf '%s' "$MINIO_ADMIN_ACCESS_KEY" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+MINIO_ADMIN_SECRET_KEY="$(printf '%s' "$MINIO_ADMIN_SECRET_KEY" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
@@ -124,33 +199,17 @@ if [ -n "$ENV_FILE" ]; then
     echo -e "${YELLOW}Using MinIO settings from: ${ENV_FILE}${NC}"
 fi
 
-# Validate required MinIO values
-if [ -z "$MINIO_ENDPOINT" ] || [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET_KEY" ]; then
+# Validate required endpoint value
+if [ -z "$MINIO_ENDPOINT" ]; then
     echo -e "${RED}Missing MinIO configuration values${NC}"
-    echo -e "${YELLOW}Required: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY${NC}"
+    echo -e "${YELLOW}Required: MINIO_ENDPOINT${NC}"
     exit 1
 fi
-
-case "${MINIO_ACCESS_KEY}" in
-    minio-access-key|changeme|your-access-key)
-        echo -e "${RED}Invalid MINIO_ACCESS_KEY value in configuration${NC}"
-        echo -e "${YELLOW}Set a real MinIO access key before continuing deployment${NC}"
-        exit 1
-        ;;
-esac
-
-case "${MINIO_SECRET_KEY}" in
-    minio-secret-key|changeme|your-secret-key)
-        echo -e "${RED}Invalid MINIO_SECRET_KEY value in configuration${NC}"
-        echo -e "${YELLOW}Set a real MinIO secret key before continuing deployment${NC}"
-        exit 1
-        ;;
-esac
 
 MINIO_ALIAS_VALID=false
 if mc alias list 2>/dev/null | grep -qE '(^|[[:space:]])mxaocr($|[[:space:]])'; then
     echo -e "${YELLOW}Found existing MinIO alias: mxaocr${NC}"
-    if mc admin info mxaocr &>/dev/null; then
+    if mc admin info mxaocr &>/dev/null || mc ls mxaocr &>/dev/null; then
         echo -e "${GREEN}Existing MinIO alias is reachable, reusing current configuration${NC}"
         MINIO_ALIAS_VALID=true
     else
@@ -159,17 +218,68 @@ if mc alias list 2>/dev/null | grep -qE '(^|[[:space:]])mxaocr($|[[:space:]])'; 
     fi
 fi
 
-# Configure alias when not already valid
-if [ "$MINIO_ALIAS_VALID" != "true" ]; then
-    if ! mc alias set mxaocr "${MINIO_PROTOCOL}://${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}"; then
-        echo -e "${RED}Failed to configure MinIO alias (mxaocr)${NC}"
-        echo -e "${YELLOW}Verify endpoint and credentials. Internal envs usually require MINIO_SECURE=false and a reachable private endpoint.${NC}"
-        exit 1
+GENERATED_CREDENTIALS=false
+if is_placeholder_value "$MINIO_ACCESS_KEY" || is_placeholder_value "$MINIO_SECRET_KEY"; then
+    echo -e "${YELLOW}MinIO credentials are missing or placeholders; generating secure credentials...${NC}"
+    MINIO_ACCESS_KEY="mxaocr$(generate_random_alnum 16)"
+    MINIO_SECRET_KEY="$(generate_random_alnum 40)"
+    GENERATED_CREDENTIALS=true
+
+    if [ -z "$ENV_FILE" ]; then
+        ENV_FILE="$DEPLOY_ROOT/python-backend/.env"
+        echo -e "${YELLOW}No existing .env found; creating ${ENV_FILE}${NC}"
+    fi
+
+    ensure_env_file_exists "$ENV_FILE"
+    upsert_env_value "$ENV_FILE" "MINIO_ACCESS_KEY" "$MINIO_ACCESS_KEY"
+    upsert_env_value "$ENV_FILE" "MINIO_SECRET_KEY" "$MINIO_SECRET_KEY"
+    echo -e "${GREEN}Updated ${ENV_FILE} with generated MinIO credentials${NC}"
+fi
+
+ADMIN_ALIAS_READY=false
+if [ "$MINIO_ALIAS_VALID" = "true" ]; then
+    ADMIN_ALIAS_READY=true
+fi
+
+if [ "$ADMIN_ALIAS_READY" != "true" ] && ! is_placeholder_value "$MINIO_ADMIN_ACCESS_KEY" && ! is_placeholder_value "$MINIO_ADMIN_SECRET_KEY"; then
+    if mc alias set mxaocr-admin "${MINIO_PROTOCOL}://${MINIO_ENDPOINT}" "${MINIO_ADMIN_ACCESS_KEY}" "${MINIO_ADMIN_SECRET_KEY}" &>/dev/null; then
+        if mc admin info mxaocr-admin &>/dev/null; then
+            ADMIN_ALIAS_READY=true
+            echo -e "${GREEN}Connected using MinIO admin credentials for user provisioning${NC}"
+        else
+            mc alias rm mxaocr-admin >/dev/null 2>&1 || true
+        fi
     fi
 fi
 
-# Test connection
-if mc admin info mxaocr &>/dev/null; then
+if [ "$ADMIN_ALIAS_READY" = "true" ]; then
+    ADMIN_ALIAS_NAME="mxaocr"
+    if mc alias list 2>/dev/null | grep -qE '(^|[[:space:]])mxaocr-admin($|[[:space:]])'; then
+        ADMIN_ALIAS_NAME="mxaocr-admin"
+    fi
+
+    if mc admin user add "$ADMIN_ALIAS_NAME" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" &>/dev/null; then
+        if mc admin policy attach "$ADMIN_ALIAS_NAME" readwrite --user "$MINIO_ACCESS_KEY" &>/dev/null; then
+            echo -e "${GREEN}Ensured MinIO user and policy mapping for ${MINIO_ACCESS_KEY}${NC}"
+        else
+            mc admin policy set "$ADMIN_ALIAS_NAME" readwrite "user=${MINIO_ACCESS_KEY}" >/dev/null 2>&1 || true
+        fi
+    fi
+fi
+
+# Configure runtime alias with current app credentials
+if ! mc alias set mxaocr "${MINIO_PROTOCOL}://${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}"; then
+        echo -e "${RED}Failed to configure MinIO alias (mxaocr)${NC}"
+        if [ "$GENERATED_CREDENTIALS" = "true" ]; then
+            echo -e "${YELLOW}Generated credentials were saved to ${ENV_FILE}, but MinIO rejected them.${NC}"
+            echo -e "${YELLOW}If MinIO is managed with root/admin credentials, set MINIO_ADMIN_ACCESS_KEY/MINIO_ADMIN_SECRET_KEY (or MINIO_ROOT_USER/MINIO_ROOT_PASSWORD) and rerun setup-minio.sh.${NC}"
+        fi
+        echo -e "${YELLOW}Verify endpoint and credentials. Internal envs usually require MINIO_SECURE=false and a reachable private endpoint.${NC}"
+        exit 1
+fi
+
+# Verification gate
+if mc admin info mxaocr &>/dev/null || mc ls mxaocr &>/dev/null; then
     echo -e "${GREEN}Successfully connected to MinIO${NC}"
 else
     echo -e "${RED}Failed to connect to MinIO${NC}"
@@ -286,14 +396,22 @@ echo -e "${GREEN}===============================================================
 echo ""
 echo -e "MinIO Endpoint:  ${GREEN}${MINIO_ENDPOINT}${NC}"
 echo -e "Access Key:      ${GREEN}${MINIO_ACCESS_KEY}${NC}"
-echo -e "Secret Key:      ${YELLOW}[configured]${NC}"
+if [ "${MINIO_SHOW_SECRET,,}" = "true" ]; then
+    echo -e "Secret Key:      ${GREEN}${MINIO_SECRET_KEY}${NC}"
+else
+    echo -e "Secret Key:      ${YELLOW}$(mask_secret_value "$MINIO_SECRET_KEY")${NC}"
+fi
 echo -e "Input Bucket:    ${GREEN}${BUCKET_INPUT}${NC}"
 echo -e "Output Bucket:   ${GREEN}${BUCKET_OUTPUT}${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo -e "1. Update .env files with MinIO credentials"
-echo -e "2. Test upload from application"
-echo -e "3. Monitor bucket usage: mc admin info mxaocr"
+echo -e "1. Python env source of truth: ${ENV_FILE:-$DEPLOY_ROOT/python-backend/.env}"
+echo -e "2. Ensure PHP .env MINIO_ACCESS_KEY/MINIO_SECRET_KEY match Python .env values"
+if [ "$GENERATED_CREDENTIALS" = "true" ]; then
+    echo -e "   Generated Access Key: ${GREEN}${MINIO_ACCESS_KEY}${NC}"
+fi
+echo -e "3. Test upload from application"
+echo -e "4. Monitor bucket usage: mc admin info mxaocr"
 echo ""
 echo -e "${YELLOW}Useful commands:${NC}"
 echo -e "  List buckets:       mc ls mxaocr/"

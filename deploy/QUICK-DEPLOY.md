@@ -82,7 +82,7 @@ Update these critical values:
 - `KEYCLOAK_CLIENT_SECRET` - Get from Keycloak
 - `APP_KEY` - Generate with: `openssl rand -hex 32`
 - `DB_PASSWORD` - Your PostgreSQL password
-- `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY`
+- `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` - Must match Python `.env` values
 
 **On Python Server (192.168.1.90):**
 ```bash
@@ -92,8 +92,10 @@ nano /opt/apps/mxa-ocr/python-backend/.env
 
 Update these critical values:
 - `DB_PASSWORD` - Same as PHP
-- `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` - Same as PHP
+- `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` - Source of truth for MinIO app credentials
 - `REDIS_PASSWORD` - If Redis has authentication
+
+> `deploy/scripts/setup-minio.sh` now auto-generates MinIO credentials if placeholders are detected, writes them to `/opt/apps/mxa-ocr/python-backend/.env`, and reuses them on subsequent runs. Keep PHP `.env` MinIO credentials aligned to these Python `.env` values.
 
 ### Step 4: Configure Keycloak
 

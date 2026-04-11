@@ -57,17 +57,21 @@ PHP Application .env:
     • APP_KEY (generate: openssl rand -hex 32)
     • KEYCLOAK_CLIENT_SECRET (from Keycloak admin console)
     • DB_PASSWORD
-    • MINIO_ACCESS_KEY
-    • MINIO_SECRET_KEY
+    • MINIO_ACCESS_KEY (must match Python .env value)
+    • MINIO_SECRET_KEY (must match Python .env value)
 
 Python Backend .env:
     Location: /opt/apps/mxa-ocr/python-backend/.env
     
     Critical values:
     • DB_PASSWORD (same as PHP)
-    • MINIO_ACCESS_KEY (same as PHP)
-    • MINIO_SECRET_KEY (same as PHP)
+    • MINIO_ACCESS_KEY (source of truth for setup-minio.sh)
+    • MINIO_SECRET_KEY (source of truth for setup-minio.sh)
     • REDIS_PASSWORD (if Redis has auth)
+
+    Note:
+    • setup-minio.sh auto-generates MinIO credentials when placeholders are detected
+    • Generated credentials are persisted in /opt/apps/mxa-ocr/python-backend/.env
 
 ═══════════════════════════════════════════════════════════════════════════════
 🔍 TESTING & VALIDATION
