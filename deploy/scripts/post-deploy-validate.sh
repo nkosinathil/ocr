@@ -22,6 +22,8 @@ SSH_USER="${SSH_USER:-root}"
 
 TESTS_PASSED=0
 TESTS_FAILED=0
+CRITICAL_FAILURES=0
+PYTHON_LOGS_SHOWN=false
 
 # ============================================================================
 # Helper Functions
@@ -47,6 +49,20 @@ test_fail() {
 
 test_warn() {
     echo -e "${YELLOW}⚠ WARN${NC} - $1"
+}
+
+show_python_service_logs() {
+    if [ "$PYTHON_LOGS_SHOWN" = true ]; then
+        return
+    fi
+
+    print_header "Python Service Diagnostics"
+    echo "Recent mxa-ocr-api logs:"
+    ssh ${SSH_USER}@${PYTHON_SERVER} "journalctl -u mxa-ocr-api -n 40 --no-pager" 2>/dev/null || true
+    echo ""
+    echo "Recent mxa-ocr-worker logs:"
+    ssh ${SSH_USER}@${PYTHON_SERVER} "journalctl -u mxa-ocr-worker -n 40 --no-pager" 2>/dev/null || true
+    PYTHON_LOGS_SHOWN=true
 }
 
 # ============================================================================
@@ -89,6 +105,8 @@ if ssh ${SSH_USER}@${PYTHON_SERVER} "systemctl is-active mxa-ocr-api" 2>/dev/nul
     test_pass "FastAPI service is running"
 else
     test_fail "FastAPI service is not running"
+    ((CRITICAL_FAILURES++))
+    show_python_service_logs
 fi
 
 # Check Celery worker
@@ -97,6 +115,8 @@ if ssh ${SSH_USER}@${PYTHON_SERVER} "systemctl is-active mxa-ocr-worker" 2>/dev/
     test_pass "Celery worker is running"
 else
     test_fail "Celery worker is not running"
+    ((CRITICAL_FAILURES++))
+    show_python_service_logs
 fi
 
 # Check Redis
@@ -144,6 +164,8 @@ if [ "$HTTP_CODE" = "200" ]; then
     test_pass "Python API health endpoint responding (HTTP 200)"
 else
     test_fail "Python API health endpoint failed (HTTP $HTTP_CODE)"
+    ((CRITICAL_FAILURES++))
+    show_python_service_logs
 fi
 
 # Test Python API root endpoint
@@ -154,6 +176,8 @@ if [ "$HTTP_CODE" = "200" ]; then
     test_pass "Python API root endpoint responding (HTTP 200)"
 else
     test_fail "Python API root endpoint failed (HTTP $HTTP_CODE)"
+    ((CRITICAL_FAILURES++))
+    show_python_service_logs
 fi
 
 # Test PHP application
@@ -330,7 +354,14 @@ print_header "Validation Summary"
 echo ""
 echo -e "Tests passed: ${GREEN}${TESTS_PASSED}${NC}"
 echo -e "Tests failed: ${RED}${TESTS_FAILED}${NC}"
+echo -e "Critical failures: ${RED}${CRITICAL_FAILURES}${NC}"
 echo ""
+
+if [ "$CRITICAL_FAILURES" -gt 0 ]; then
+    echo -e "${RED}✗ Critical Python service/API validation failures detected.${NC}"
+    show_python_service_logs
+    echo ""
+fi
 
 if [ $TESTS_FAILED -eq 0 ]; then
     echo -e "${GREEN}✓ All validation tests passed!${NC}"
