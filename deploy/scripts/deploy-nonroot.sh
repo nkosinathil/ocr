@@ -65,12 +65,42 @@ check_ssh_connection() {
     local server=$1
     local user=$2
     print_step "Checking SSH connection to $user@$server..."
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes ${user}@${server} exit 2>/dev/null; then
+    
+    # Try SSH with BatchMode (key-based auth only) and disable strict host key checking
+    if ssh -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=no ${user}@${server} exit 2>/dev/null; then
         print_success "SSH connection to $user@$server successful"
         return 0
     else
         print_error "Cannot connect to $user@$server"
-        print_info "Make sure SSH keys are set up: ssh-copy-id $user@$server"
+        echo ""
+        print_info "Troubleshooting steps:"
+        
+        # Check if we can connect with password (not BatchMode)
+        print_step "Testing if server is reachable..."
+        if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no ${user}@${server} exit 2>/dev/null; then
+            print_error "Server is reachable but key authentication failed"
+            print_info "SSH keys may not be properly set up. Try:"
+            print_info "  1. Run: ssh-copy-id $user@$server"
+            print_info "  2. Make sure your SSH key is added to ssh-agent:"
+            print_info "     eval \$(ssh-agent -s)"
+            print_info "     ssh-add ~/.ssh/id_rsa"
+        else
+            print_error "Cannot reach server at all"
+            print_info "Possible issues:"
+            print_info "  1. Server is down or unreachable"
+            print_info "  2. Firewall blocking connection"
+            print_info "  3. Wrong IP address or username"
+        fi
+        
+        # Check for SSH agent
+        if [ -z "$SSH_AUTH_SOCK" ]; then
+            echo ""
+            print_info "SSH agent is not running. Start it with:"
+            print_info "  eval \$(ssh-agent -s)"
+            print_info "  ssh-add ~/.ssh/id_rsa"
+        fi
+        
+        echo ""
         return 1
     fi
 }
