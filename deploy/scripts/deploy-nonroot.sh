@@ -233,12 +233,12 @@ tar -xzf mxa-ocr-deploy.tar.gz
 
 # Create release directory with sudo
 RELEASE_DIR="${APP_SERVER_DIR}/releases/\$(date +%Y%m%d-%H%M%S)"
-echo "\$SUDO_APP_PASS" | sudo -S mkdir -p ${APP_SERVER_DIR}/releases
-echo "\$SUDO_APP_PASS" | sudo -S mkdir -p \${RELEASE_DIR}
-echo "\$SUDO_APP_PASS" | sudo -S cp -r ocr/* \${RELEASE_DIR}/
+echo "$SUDO_APP_PASS" | sudo -S mkdir -p ${APP_SERVER_DIR}/releases
+echo "$SUDO_APP_PASS" | sudo -S mkdir -p \${RELEASE_DIR}
+echo "$SUDO_APP_PASS" | sudo -S cp -r ocr/* \${RELEASE_DIR}/
 
 # Update symlink
-echo "\$SUDO_APP_PASS" | sudo -S ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
+echo "$SUDO_APP_PASS" | sudo -S ln -sfn \${RELEASE_DIR} ${APP_SERVER_DIR}/current
 
 echo "✓ Code deployed to App Server"
 ENDSSH
@@ -271,7 +271,7 @@ print_success "App Server code deployed"
 print_header "Step 3: Setting up Database on App Server"
 
 if [ -n "$SUDO_APP_PASS" ]; then
-    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << ENDSSH
 set -e
 cd /var/www/mxa-ocr-app/current/deploy/scripts
 echo "Running database setup..."
@@ -295,7 +295,7 @@ print_success "Database setup complete"
 print_header "Step 4: Deploying PHP Application"
 
 if [ -n "$SUDO_APP_PASS" ]; then
-    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << ENDSSH
 set -e
 cd /var/www/mxa-ocr-app/current/deploy/scripts
 echo "Running PHP application setup..."
@@ -340,8 +340,8 @@ cd /tmp/mxa-ocr-deploy
 tar -xzf mxa-ocr-deploy.tar.gz
 
 # Create application directory with sudo
-echo "\$SUDO_PYTHON_PASS" | sudo -S mkdir -p ${PYTHON_SERVER_DIR}
-echo "\$SUDO_PYTHON_PASS" | sudo -S cp -r ocr/* ${PYTHON_SERVER_DIR}/
+echo "$SUDO_PYTHON_PASS" | sudo -S mkdir -p ${PYTHON_SERVER_DIR}
+echo "$SUDO_PYTHON_PASS" | sudo -S cp -r ocr/* ${PYTHON_SERVER_DIR}/
 
 echo "✓ Code deployed to Python Server"
 ENDSSH
@@ -368,7 +368,7 @@ print_success "Python Server code deployed"
 print_header "Step 6: Setting up Python Backend"
 
 if [ -n "$SUDO_PYTHON_PASS" ]; then
-    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 echo "Running Python backend setup..."
@@ -400,7 +400,7 @@ read -p "Press ENTER when .env has been configured..."
 print_header "Step 7: Setting up MinIO Storage"
 
 if [ -n "$SUDO_PYTHON_PASS" ]; then
-    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
 set -e
 cd /opt/apps/mxa-ocr/deploy/scripts
 if [ -f setup-minio.sh ]; then
@@ -434,7 +434,7 @@ print_header "Step 8: Starting Services"
 # Start Python services
 print_step "Starting Python services..."
 if [ -n "$SUDO_PYTHON_PASS" ]; then
-    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
 set -e
 echo "$SUDO_PYTHON_PASS" | sudo -S systemctl start mxa-ocr-api
 echo "$SUDO_PYTHON_PASS" | sudo -S systemctl start mxa-ocr-worker
@@ -460,7 +460,7 @@ print_success "Python services started"
 # Restart Apache
 print_step "Restarting Apache..."
 if [ -n "$SUDO_APP_PASS" ]; then
-    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << 'ENDSSH'
+    ssh ${SSH_USER_APP}@${APP_SERVER} bash -s << ENDSSH
 set -e
 echo "$SUDO_APP_PASS" | sudo -S systemctl reload apache2
 echo "$SUDO_APP_PASS" | sudo -S systemctl status apache2 --no-pager
@@ -502,7 +502,7 @@ ENDSSH
 # Check service status
 print_step "Checking service status..."
 if [ -n "$SUDO_PYTHON_PASS" ]; then
-    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << 'ENDSSH'
+    ssh ${SSH_USER_PYTHON}@${PYTHON_SERVER} bash -s << ENDSSH
 echo "$SUDO_PYTHON_PASS" | sudo -S systemctl status mxa-ocr-api --no-pager | head -n 3
 echo "$SUDO_PYTHON_PASS" | sudo -S systemctl status mxa-ocr-worker --no-pager | head -n 3
 ENDSSH
