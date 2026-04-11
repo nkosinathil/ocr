@@ -55,6 +55,7 @@ sudo bash deploy-single-server.sh
 
 | Script | Description | When to Use |
 |--------|-------------|-------------|
+| **setup-ssh-keys.sh** 🆕 | Automated SSH key setup | Before first deployment, especially for Windows users |
 | **deploy-nonroot.sh** 🆕 | Non-root user deployment with sudo | SSH access with custom usernames |
 | **deploy-quick.sh** 🆕 | Interactive deployment (prompts for usernames) | Quick deployment without config files |
 | **deploy-config.sh** 🆕 | Configuration template | Create reusable deployment configs |
@@ -207,19 +208,42 @@ bash rollback.sh
 
 ### SSH Setup
 
-For passwordless deployment, set up SSH key authentication:
+#### Quick Setup (Recommended for Windows/Git Bash Users)
+
+We provide an automated SSH setup script that handles everything:
+
+```bash
+bash setup-ssh-keys.sh
+```
+
+This script will:
+- ✓ Generate an SSH key if needed
+- ✓ Start SSH agent and load your key
+- ✓ Copy keys to all servers
+- ✓ Test all connections
+- ✓ Provide troubleshooting if something fails
+
+**Windows/Git Bash users:** See [../docs/SSH-SETUP-WINDOWS.md](../docs/SSH-SETUP-WINDOWS.md) for detailed guide.
+
+#### Manual SSH Setup
+
+For manual setup or non-root deployment:
 
 ```bash
 # Generate SSH key (if you don't have one)
 ssh-keygen -t rsa -b 4096
 
-# Copy to servers
-ssh-copy-id root@192.168.1.66
-ssh-copy-id root@192.168.1.90
-ssh-copy-id root@192.168.1.59
+# Start SSH agent (especially important for Git Bash on Windows)
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa
+
+# Copy to servers (use your specific usernames)
+ssh-copy-id apps@192.168.1.66
+ssh-copy-id pyminio@192.168.1.90
+ssh-copy-id ssoadmin@192.168.1.59
 
 # Test connection
-ssh root@192.168.1.66 "echo 'Connection successful'"
+ssh -o BatchMode=yes apps@192.168.1.66 exit
 ```
 
 ### Environment Variables
@@ -257,12 +281,31 @@ bash deploy/scripts/deploy-master.sh
 
 ### SSH Connection Failed
 
+**For Windows/Git Bash users**, this is a common issue. See [../docs/SSH-SETUP-WINDOWS.md](../docs/SSH-SETUP-WINDOWS.md) for a comprehensive guide.
+
+**Quick fix:**
 ```bash
-# Check if server is reachable
+# Run the automated SSH setup script
+bash setup-ssh-keys.sh
+```
+
+**Manual troubleshooting:**
+```bash
+# Check if SSH agent is running (critical for Git Bash)
+echo $SSH_AUTH_SOCK
+
+# Start SSH agent if not running
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa
+
+# Test connection with BatchMode (what the deployment script uses)
+ssh -o BatchMode=yes -o StrictHostKeyChecking=no apps@192.168.1.66 exit
+
+# If that fails, check if server is reachable
 ping 192.168.1.66
 
-# Test SSH connection
-ssh -v root@192.168.1.66
+# Test SSH with verbose output
+ssh -vvv apps@192.168.1.66
 
 # Check SSH key permissions
 chmod 600 ~/.ssh/id_rsa
