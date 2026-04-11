@@ -8,6 +8,17 @@
 
 set -e  # Exit on error
 
+# ============================================================================
+# Load SSH Agent Info if Available
+# ============================================================================
+
+SSH_AGENT_FILE="$HOME/.ssh/mxa-ocr-agent-info"
+
+# Try to load SSH agent info from setup-ssh-keys.sh
+if [ -f "$SSH_AGENT_FILE" ] && [ -z "$SSH_AUTH_SOCK" ]; then
+    source "$SSH_AGENT_FILE"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

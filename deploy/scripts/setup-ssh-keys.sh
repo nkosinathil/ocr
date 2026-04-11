@@ -105,6 +105,9 @@ fi
 
 print_header "Step 2: Setting up SSH Agent"
 
+# SSH agent info file location
+SSH_AGENT_FILE="$HOME/.ssh/mxa-ocr-agent-info"
+
 # Check if SSH agent is running
 if [ -z "$SSH_AUTH_SOCK" ]; then
     print_step "Starting SSH agent..."
@@ -112,12 +115,31 @@ if [ -z "$SSH_AUTH_SOCK" ]; then
     
     if [ $? -eq 0 ]; then
         print_success "SSH agent started"
+        
+        # Save agent info to file for later use
+        cat > "$SSH_AGENT_FILE" <<EOF
+# MXA OCR SSH Agent Info
+# Source this file to reuse the SSH agent: source ~/.ssh/mxa-ocr-agent-info
+export SSH_AUTH_SOCK="$SSH_AUTH_SOCK"
+export SSH_AGENT_PID="$SSH_AGENT_PID"
+EOF
+        chmod 600 "$SSH_AGENT_FILE"
+        print_info "Agent info saved to $SSH_AGENT_FILE"
     else
         print_error "Failed to start SSH agent"
         exit 1
     fi
 else
     print_success "SSH agent is already running"
+    
+    # Save current agent info to file
+    cat > "$SSH_AGENT_FILE" <<EOF
+# MXA OCR SSH Agent Info
+# Source this file to reuse the SSH agent: source ~/.ssh/mxa-ocr-agent-info
+export SSH_AUTH_SOCK="$SSH_AUTH_SOCK"
+export SSH_AGENT_PID="$SSH_AGENT_PID"
+EOF
+    chmod 600 "$SSH_AGENT_FILE"
 fi
 
 # Add the SSH key to the agent
@@ -226,17 +248,29 @@ print_header "Setup Complete"
 if [ "$all_passed" = true ]; then
     print_success "All SSH connections are working!"
     echo ""
-    print_info "You can now run the deployment script:"
+    
+    # Save deployment config to the agent file
+    cat >> "$SSH_AGENT_FILE" <<EOF
+# Deployment Configuration
+export APP_SERVER="$APP_SERVER"
+export PYTHON_SERVER="$PYTHON_SERVER"
+export SSO_SERVER="$SSO_SERVER"
+export SSH_USER_APP="$SSH_USER_APP"
+export SSH_USER_PYTHON="$SSH_USER_PYTHON"
+export SSH_USER_SSO="$SSH_USER_SSO"
+EOF
+    
+    print_info "SSH agent and configuration saved!"
+    echo ""
+    print_info "To use this SSH agent in your current shell, run:"
+    echo -e "  ${GREEN}source ~/.ssh/mxa-ocr-agent-info${NC}"
+    echo ""
+    print_info "Then run the deployment script:"
     echo -e "  ${GREEN}bash deploy-quick.sh${NC}"
     echo ""
-    
-    # Export variables for use in deployment
-    export APP_SERVER
-    export PYTHON_SERVER
-    export SSO_SERVER
-    export SSH_USER_APP
-    export SSH_USER_PYTHON
-    export SSH_USER_SSO
+    print_info "Or run both commands together:"
+    echo -e "  ${GREEN}source ~/.ssh/mxa-ocr-agent-info && bash deploy-quick.sh${NC}"
+    echo ""
     
 else
     print_error "Some connections failed"
